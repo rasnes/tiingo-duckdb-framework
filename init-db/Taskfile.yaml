@@ -1,0 +1,86 @@
+version: "3"
+
+vars:
+  PYTHON: python
+  POETRY: "poetry"
+  RUN_PREFIX: "{{.POETRY}} run"
+  RUN_PYTHON: "{{.RUN_PREFIX}} python"
+
+tasks:
+  lint:
+    desc: Check static typing with Ruff
+    dir: .
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m ruff check . \
+        {{if (eq (.FIX | default "false") "true")}}--fix{{end}} \
+        {{if (eq (.VERBOSE | default "false") "true")}}--verbose{{end}} \
+
+  fmt:
+    desc: Format static typing with Ruff
+    dir: .
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m ruff format .
+
+  typecheck:
+    desc: Typechecking via pyright
+    dir: .
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m pyright . \
+        {{if (eq (.VERBOSE | default "false") "true")}}--verbose{{end}}
+
+  test:
+    desc: Run all python tests
+    aliases: [pytest]
+    dir: .
+    cmds:
+      - "{{.RUN_PYTHON}} -m pytest tests"
+
+  test:unit:
+    desc: Run python unit tests
+    dir: .
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m pytest -m "not integration" tests
+
+  test:integration:
+    desc: Run python integration tests
+    dir: .
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m pytest -m "integration" tests
+
+  check:
+    desc: Run all Python static code checks
+    dir: .
+    cmds:
+      - task: fmt
+        vars: { FIX: false }
+      - task: lint
+        vars: { FIX: false }
+      - task: typecheck
+
+  fix:
+    desc: Fix all auto-fixable code check errors
+    dir: .
+    cmds:
+      - task: fmt
+        vars: { FIX: true }
+      - task: lint
+        vars: { FIX: true }
+
+  validate:
+    desc: Validate python with static code checks and unit tests
+    dir: .
+    cmds:
+      - task: check
+      - task: test
+
+  validate:lite:
+    desc: Validate python with static code checks and unit tests
+    dir: .
+    cmds:
+      - task: check
+      - task: test:unit
