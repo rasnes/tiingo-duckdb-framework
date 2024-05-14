@@ -4,9 +4,6 @@ Python classes and functions for initializing a DuckDB/Motherduck database with 
 
 ## TODO
 
-- Check if endDate is needed at all in the API requests, maybe they just can be skipped?
-  - And possibly also startDate, that it could be set to 1995-01-01 for all tickers?
-  - Benefit: making queries and query logic easier.
 - Document classes, functions and methods
 - Make linting pass, in particular get the typecheck passing.
 - Add tests for all end-user functions and methods
@@ -15,4 +12,15 @@ Python classes and functions for initializing a DuckDB/Motherduck database with 
 - Write this README for instructions on how to get it working.
 - Configure CI/CD with Github Actions, using the task file.
 
-Once the above is completed, start with the Go ingest.
+Once the above is completed, start with the Go ingest:
+
+- Use the appender API for the "regular" daily ingest.
+  - If the ingest fails due to primary key constraints, assume that the data already is present in the table. I.e. ignore error.
+  - If a stock has splitFactor != 1 or divCash > 0: backfill entire history with the `INSERT OR REPLACE INTO tbl` DuckDB API.
+    - Investigate how time-consuming this is, try with e.g. Apple.
+
+
+## TODO longer term
+
+- Add support for bootstrapping a new table with fundamentals. When I have access to that API.
+- What to do about news? Check it out. This might be more useful to feed to an LLM than a database?

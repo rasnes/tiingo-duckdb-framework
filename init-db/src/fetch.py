@@ -3,7 +3,9 @@ import zipfile
 import httpx
 import logging
 import datetime
+import tempfile
 import polars as pl
+import duckdb
 from asyncio import TaskGroup
 import pathlib
 
@@ -151,26 +153,24 @@ class Fetch:
 
 def get_supported_tickers(
     url: str = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip",
-) -> pl.DataFrame:
+    supported_tickers_query: pathlib.Path = pathlib.Path("sql/supported_tickers.sql"),
+) -> duckdb.DuckDBPyConnection:
     """Fetch the list of supported tickers from the Tiingo API."""
     response = httpx.get(url)
     zip_data = io.BytesIO(response.content)
+
+    con = duckdb.connect(":memory:")
+    create_table_query = supported_tickers_query.read_text()
+    con.execute(create_table_query)
 
     with zipfile.ZipFile(zip_data, "r") as zip_ref:
         csv_filename = zip_ref.namelist()[0]
 
         with zip_ref.open(csv_filename) as csv_file:
-            csv_data = io.BytesIO(csv_file.read())
-            df = pl.read_csv(
-                source=csv_data,
-                schema={
-                    "ticker": pl.String,
-                    "exchange": pl.String,
-                    "assetType": pl.String,
-                    "priceCurrency": pl.String,
-                    "startDate": pl.Date,
-                    "endDate": pl.Date,
-                },
-            )
+            with tempfile.NamedTemporaryFile(delete=False, mode='w+b') as temp_file:
+                temp_file.write(csv_file.read())
+                temp_file_path = temp_file.name
 
-    return df
+            con.execute(f"COPY supported_tickers FROM '{temp_file_path}' (DELIMITER ',')")
+
+    return con
