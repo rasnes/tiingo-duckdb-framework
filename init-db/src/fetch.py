@@ -20,7 +20,7 @@ class Fetch:
         client: httpx.AsyncClient,
         tiingo_token: str,
         add_ticker_column: bool,
-        min_start_date: str | None = None,
+        min_start_date: str = "1995-01-01",
         save_dir: str = "data",
         response_format: str = "csv",
         failed_tickers_file: str = "failed_tickers.csv",
@@ -35,18 +35,16 @@ class Fetch:
         if not self._failed_tickers_file.exists():
             self._failed_tickers_file.touch()
             self._failed_tickers_file.write_text("ticker,date\n")
+    # TODO: document this method
 
     async def fetch_to_disk(
         self,
         ticker: str,
-        start_date: str,
         columns: list[str] | None = None,
     ):
         """Compose the URL and path, then fetch data and save it to disk."""
-        if self._min_start_date is not None:
-            start_date = self._min_start_date
-        url = self._compose_url(ticker, start_date, columns)
-        path = self._compose_path(ticker, start_date)
+        url = self._compose_url(ticker, self._min_start_date, columns)
+        path = self._compose_path(ticker, self._min_start_date)
         response_text = await self._fetch(url)
         if response_text is not None:
             if response_text == "[]" or response_text == "":
@@ -84,13 +82,10 @@ class Fetch:
         async with TaskGroup() as tg:
             for row in df.rows(named=True):
                 ticker = row["ticker"]
-                start_date = str(row["startDate"])
-                # end_date = str(row["endDate"])
                 tasks.append(
                     tg.create_task(
                         self.fetch_to_disk(
                             ticker=ticker,
-                            start_date=start_date,
                             columns=columns,
                         )
                     )
