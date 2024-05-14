@@ -63,14 +63,13 @@ async def test_fetch_http_status_error(mocker, caplog):
 def test_compose_url():
     ticker = "AAPL"
     start_date = "2022-01-01"
-    end_date = "2022-01-31"
     fetch_instance = Fetch(
         httpx.AsyncClient(), "token", add_ticker_column=False, response_format="csv"
     )
 
     url = fetch_instance._compose_url(
-        ticker, start_date, end_date, columns=["date", "adjClose"]
+        ticker, start_date, columns=["date", "adjClose"]
     )
 
-    expected_url = "https://api.tiingo.com/tiingo/daily/AAPL/prices?startDate=2022-01-01&endDate=2022-01-31&format=csv&columns=date,adjClose&token=token"
+    expected_url = "https://api.tiingo.com/tiingo/daily/AAPL/prices?startDate=2022-01-01&format=csv&columns=date,adjClose&token=token"
     assert url == expected_url

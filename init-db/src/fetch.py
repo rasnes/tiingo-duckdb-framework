@@ -40,14 +40,13 @@ class Fetch:
         self,
         ticker: str,
         start_date: str,
-        end_date: str,
         columns: list[str] | None = None,
     ):
         """Compose the URL and path, then fetch data and save it to disk."""
-        if self._min_start_date is not None and start_date < self._min_start_date:
+        if self._min_start_date is not None:
             start_date = self._min_start_date
-        url = self._compose_url(ticker, start_date, end_date, columns)
-        path = self._compose_path(ticker, start_date, end_date)
+        url = self._compose_url(ticker, start_date, columns)
+        path = self._compose_path(ticker, start_date)
         response_text = await self._fetch(url)
         if response_text is not None:
             if response_text == "[]" or response_text == "":
@@ -86,13 +85,12 @@ class Fetch:
             for row in df.rows(named=True):
                 ticker = row["ticker"]
                 start_date = str(row["startDate"])
-                end_date = str(row["endDate"])
+                # end_date = str(row["endDate"])
                 tasks.append(
                     tg.create_task(
                         self.fetch_to_disk(
                             ticker=ticker,
                             start_date=start_date,
-                            end_date=end_date,
                             columns=columns,
                         )
                     )
@@ -131,22 +129,21 @@ class Fetch:
             logger.exception(f"An unexpected error occurred for {url}: {e}")
 
     def _compose_path(
-        self, ticker: str, start_date: str, end_date: str
+        self, ticker: str, start_date: str
     ) -> pathlib.Path:
         """Compose the path for saving the historical end-of-day prices."""
-        filename = f"{ticker}_{start_date}_{end_date}.{self._response_format}"
+        filename = f"{ticker}_{start_date}.{self._response_format}"
         return pathlib.Path(f"{self._save_dir}/{filename}")
 
     def _compose_url(
         self,
         ticker: str,
         start_date: str,
-        end_date: str,
         columns: list[str] | None = None,
     ) -> str:
         """Compose the URL for fetching historical end-of-day prices."""
         base_url = "https://api.tiingo.com/tiingo/daily"
-        url = f"{base_url}/{ticker}/prices?startDate={start_date}&endDate={end_date}&format={self._response_format}"
+        url = f"{base_url}/{ticker}/prices?startDate={start_date}&format={self._response_format}"
         if columns is not None:
             url += f"&columns={','.join(columns)}"
         return f"{url}&token={self._tiingo_token}"
