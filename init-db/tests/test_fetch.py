@@ -23,7 +23,9 @@ def test_save_to_csv_with_ticker_col(mocker):
     mock_write_csv = mocker.patch.object(pl.DataFrame, "write_csv")
 
     # Mock the with_columns method
-    mock_with_columns = mocker.patch.object(pl.DataFrame, "with_columns", return_value=mock_df)
+    mock_with_columns = mocker.patch.object(
+        pl.DataFrame, "with_columns", return_value=mock_df
+    )
 
     # Call the function
     _save_to_csv_with_ticker_col(response_text, path, ticker)
@@ -44,13 +46,9 @@ def test_save_to_csv_with_ticker_col(mocker):
 def test_compose_url():
     ticker = "AAPL"
     start_date = "2022-01-01"
-    fetch_instance = Fetch(
-        httpx.AsyncClient(), "token", response_format="csv"
-    )
+    fetch_instance = Fetch(httpx.AsyncClient(), "token", response_format="csv")
 
-    url = fetch_instance._compose_url(
-        ticker, start_date, columns=["date", "adjClose"]
-    )
+    url = fetch_instance._compose_url(ticker, start_date, columns=["date", "adjClose"])
 
     expected_url = "https://api.tiingo.com/tiingo/daily/AAPL/prices?startDate=2022-01-01&format=csv&columns=date,adjClose&token=token"
     assert url == expected_url
@@ -149,6 +147,7 @@ async def test_fetch_to_disk(mocker):
     mock_fetch.assert_called_once_with(url)
     mock_save_to_csv.assert_called_once_with(response_text, path, ticker)
     mock_write_failed_ticker.assert_not_called()
+
 
 @pytest.mark.asyncio
 async def test_fetch_to_disk_no_data(mocker):

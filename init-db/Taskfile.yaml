@@ -38,20 +38,6 @@ tasks:
     cmds:
       - "{{.RUN_PYTHON}} -m pytest tests"
 
-  test:unit:
-    desc: Run python unit tests
-    dir: .
-    cmds:
-      - |
-        {{.RUN_PYTHON}} -m pytest -m "not integration" tests
-
-  test:integration:
-    desc: Run python integration tests
-    dir: .
-    cmds:
-      - |
-        {{.RUN_PYTHON}} -m pytest -m "integration" tests
-
   check:
     desc: Run all Python static code checks
     dir: .
@@ -77,10 +63,3 @@ tasks:
     cmds:
       - task: check
       - task: test
-
-  validate:lite:
-    desc: Validate python with static code checks and unit tests
-    dir: .
-    cmds:
-      - task: check
-      - task: test:unit

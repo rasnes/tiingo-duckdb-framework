@@ -7,12 +7,12 @@ create or replace view selected_us_tickers as (
     from supported_tickers join max_end_date
       on 1=1
     where
-      exchange in ('NYSE', 'NASDAQ', 'NYSE MKT', 'NYSE ARCA')
+      exchange in ('NYSE', 'NASDAQ', 'NYSE MKT', 'NYSE ARCA', 'AMEX')
       and startDate is not null
       and (
           assetType = 'Stock'
-          -- only select EFTs that still exist
-          or (assetType = 'ETF' and endDate == max_end_date.maxEndDate)
+          -- only select ETFs that still exist
+          or (assetType = 'ETF' and endDate = max_end_date.maxEndDate)
       )
   )
   select *
