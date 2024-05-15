@@ -202,8 +202,20 @@ class Fetch:
             The columns to fetch, by default None (which will fetch all columns).
         async_batch_size : int, optional
             The batch size for fetching data asynchronously, by default 500.
+
+        Raises
+        ------
+        ValueError
+            If the number of rows in the DataFrame is greater than 10,000.
         """
+
         total_rows = df.shape[0]
+        if total_rows > 10000:
+            raise ValueError(
+                "The number of rows in the DataFrame is greater than 10,000, which exceeds the hourly "
+                "Tiingo API request limit."
+            )
+
         for start in range(0, total_rows, async_batch_size):
             df_batch = df.slice(start, async_batch_size)
             print(f"Fetching {start} to {start+async_batch_size} of {total_rows}")
