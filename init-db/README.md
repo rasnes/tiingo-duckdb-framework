@@ -4,11 +4,6 @@ Python classes and functions for initializing a DuckDB/Motherduck database with 
 
 ## TODO
 
-- Document classes, functions and methods
-- Make linting pass, in particular get the typecheck passing.
-- Add tests for all end-user functions and methods
-- Move polars transformations to dedicated module and add tests.
-- Go through all TODOs scattered around in code and notebook.
 - Write this README for instructions on how to get it working.
 - Configure CI/CD with Github Actions, using the task file.
 

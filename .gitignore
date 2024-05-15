@@ -38,3 +38,6 @@ venv.bak/
 *.db
 *.duckdb
 *.wal
+
+# MacOS
+.DS_Store
