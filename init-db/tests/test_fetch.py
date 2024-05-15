@@ -11,7 +11,7 @@ async def test_fetch_success(mocker):
     mock_response = httpx.Response(status_code=200, text="Success", request=request)
     mock_client.get = mocker.AsyncMock(return_value=mock_response)
 
-    fetch_instance = Fetch(mock_client, "token", add_ticker_column=False)
+    fetch_instance = Fetch(mock_client, "token")
 
     url = "https://example.com"
     result = await fetch_instance._fetch(url)
@@ -29,7 +29,7 @@ async def test_fetch_request_error(mocker, caplog):
         )
     )
 
-    fetch_instance = Fetch(mock_client, "token", add_ticker_column=False)
+    fetch_instance = Fetch(mock_client, "token")
 
     url = "https://example.com"
     result = await fetch_instance._fetch(url)
@@ -51,7 +51,7 @@ async def test_fetch_http_status_error(mocker, caplog):
         ),
     )
 
-    fetch_instance = Fetch(mock_client, "token", add_ticker_column=False)
+    fetch_instance = Fetch(mock_client, "token")
 
     url = "https://example.com"
     result = await fetch_instance._fetch(url)
@@ -64,7 +64,7 @@ def test_compose_url():
     ticker = "AAPL"
     start_date = "2022-01-01"
     fetch_instance = Fetch(
-        httpx.AsyncClient(), "token", add_ticker_column=False, response_format="csv"
+        httpx.AsyncClient(), "token", response_format="csv"
     )
 
     url = fetch_instance._compose_url(

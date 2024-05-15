@@ -16,28 +16,121 @@ logger = logging.getLogger(__name__)
 # TODO: add relevant tests for this class
 
 
+def _save_to_csv_with_ticker_col(
+    response_text: str, path: pathlib.Path, ticker: str
+) -> None:
+    """Save the fetched data to a CSV file with the ticker as the last column.
+
+    Parameters
+    ----------
+    response_text : str
+        The response text from the API.
+    path : pathlib.Path
+        The path to save the CSV file.
+    ticker : str
+        The ticker symbol.
+    """
+    (
+        pl.read_csv(io.StringIO(response_text))
+        .with_columns(pl.lit(ticker).alias("ticker"))
+        .write_csv(path)
+    )
+
+
+def get_supported_tickers(
+        url: str = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip",
+        supported_tickers_query: pathlib.Path = pathlib.Path("sql/supported_tickers.sql"),
+) -> duckdb.DuckDBPyConnection:
+    """Fetch the list of supported tickers from the Tiingo API.
+
+    Parameters
+    ----------
+    url : str, optional
+        The URL to fetch the supported tickers from, by default "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+    supported_tickers_query : pathlib.Path, optional
+        The path to the SQL query to create the table for supported tickers, by default pathlib.Path("sql/supported_tickers.sql")
+
+    Returns
+    -------
+    duckdb.DuckDBPyConnection
+        A connection to an in-memory DuckDB database with the supported tickers.
+    """
+    response = httpx.get(url)
+    zip_data = io.BytesIO(response.content)
+
+    con = duckdb.connect(":memory:")
+    create_table_query = supported_tickers_query.read_text()
+    con.execute(create_table_query)
+
+    with zipfile.ZipFile(zip_data, "r") as zip_ref:
+        csv_filename = zip_ref.namelist()[0]
+
+        with zip_ref.open(csv_filename) as csv_file:
+            with tempfile.NamedTemporaryFile(delete=False, mode="w+b") as temp_file:
+                temp_file.write(csv_file.read())
+                temp_file_path = temp_file.name
+
+            con.execute(
+                f"COPY supported_tickers FROM '{temp_file_path}' (DELIMITER ',')"
+            )
+
+    return con
+
+
 class Fetch:
+    """Fetch historical end-of-day prices from the Tiingo API.
+
+    Attributes
+    ----------
+    _client : httpx.AsyncClient
+        httpx.AsyncClient is used for making async requests to the API.
+    _tiingo_token : str
+        The Tiingo API token.
+    _start_date : str, optional
+        The start date for fetching data, by default "1995-01-01".
+    _save_dir : str, optional
+        The directory to save the fetched data, by default "data".
+    _response_format : str, optional
+        The format of the response, by default "csv".
+    _failed_tickers_file : str, optional
+        The file to write failed tickers to, by default "failed_tickers.csv".
+    """
+
     def __init__(
         self,
         client: httpx.AsyncClient,
         tiingo_token: str,
-        add_ticker_column: bool,
-        min_start_date: str = "1995-01-01",
+        start_date: str = "1995-01-01",
         save_dir: str = "data",
         response_format: str = "csv",
         failed_tickers_file: str = "failed_tickers.csv",
     ):
+        """Initialize the Fetch object.
+
+        Parameters
+        ----------
+        client : httpx.AsyncClient
+            httpx.AsyncClient is used for making async requests to the API.
+        tiingo_token : str
+            The Tiingo API token.
+        start_date : str, optional
+            The start date for fetching data, by default "1995-01-01".
+        save_dir : str, optional
+            The directory to save the fetched data, by default "data".
+        response_format : str, optional
+            The format of the response, by default "csv".
+        failed_tickers_file : str, optional
+            The file to write failed tickers to, by default "failed_tickers.csv".
+        """
         self._client = client
         self._save_dir = save_dir
         self._response_format = response_format
         self._tiingo_token = tiingo_token
-        self._add_ticker_column = add_ticker_column
-        self._min_start_date = min_start_date
+        self._start_date = start_date
         self._failed_tickers_file = pathlib.Path(failed_tickers_file)
         if not self._failed_tickers_file.exists():
             self._failed_tickers_file.touch()
             self._failed_tickers_file.write_text("ticker,date\n")
-    # TODO: document this method
 
     async def fetch_to_disk(
         self,
@@ -45,8 +138,8 @@ class Fetch:
         columns: list[str] | None = None,
     ):
         """Compose the URL and path, then fetch data and save it to disk."""
-        url = self._compose_url(ticker, self._min_start_date, columns)
-        path = self._compose_path(ticker, self._min_start_date)
+        url = self._compose_url(ticker, self._start_date, columns)
+        path = self._compose_path(ticker, self._start_date)
         response_text = await self._fetch(url)
         if response_text is not None:
             if response_text == "[]" or response_text == "":
@@ -59,14 +152,7 @@ class Fetch:
                 self._write_failed_ticker(ticker)
                 return
 
-            if self._add_ticker_column:
-                (
-                    pl.read_csv(io.StringIO(response_text))
-                    .with_columns(pl.lit(ticker).alias("ticker"))
-                    .write_csv(path)
-                )
-            else:
-                path.write_text(response_text)
+            _save_to_csv_with_ticker_col(response_text, path, ticker)
             logger.info(f"Saved data for {ticker} to {path}")
         else:
             logger.error(f"response.text for {ticker} is None.")
@@ -78,7 +164,13 @@ class Fetch:
         columns: list[str] | None = None,
     ):
         """Fetch historical end-of-day prices for the tickers in the DataFrame and write to disk.
-        `startDate` and `endDate` columns are expected in the DataFrame.
+
+        Parameters
+        ----------
+        df : pl.DataFrame
+            The DataFrame containing the tickers. Required columns: "ticker".
+        columns : list[str], optional
+            The columns to fetch, by default None (which will fetch all columns).
         """
         tasks = []
         async with TaskGroup() as tg:
@@ -97,11 +189,21 @@ class Fetch:
             task.result()
 
     async def fetch_all(
-        self, df: pl.DataFrame, columns: list[str], async_batch_size: int = 500
+        self, df: pl.DataFrame, columns: list[str] | None, async_batch_size: int = 500
     ):
-        """Helper function to fetch all the data in the DataFrame in batches.
-        The fetch_supported_tickers method seemed to run into concurrency issues when fetching all the data at once.
+        """Wrapper function around `fetch_supported_tickers` to fetch all the data in the DataFrame
+        in batches and write to disk. The fetch_supported_tickers method runs into concurrency issues
+        when fetching all the data at once.
         Remember: there is a 10k request limit per hour for the Tiingo API.
+
+        Parameters
+        ----------
+        df : pl.DataFrame
+            The DataFrame containing the tickers. Required columns: "ticker".
+        columns : list[str]
+            The columns to fetch, by default None (which will fetch all columns).
+        async_batch_size : int, optional
+            The batch size for fetching data asynchronously, by default 500.
         """
         total_rows = df.shape[0]
         for start in range(0, total_rows, async_batch_size):
@@ -125,9 +227,7 @@ class Fetch:
         except Exception as e:
             logger.exception(f"An unexpected error occurred for {url}: {e}")
 
-    def _compose_path(
-        self, ticker: str, start_date: str
-    ) -> pathlib.Path:
+    def _compose_path(self, ticker: str, start_date: str) -> pathlib.Path:
         """Compose the path for saving the historical end-of-day prices."""
         filename = f"{ticker}_{start_date}.{self._response_format}"
         return pathlib.Path(f"{self._save_dir}/{filename}")
@@ -149,28 +249,3 @@ class Fetch:
         """Write the failed ticker to the file."""
         with self._failed_tickers_file.open("a") as f:
             f.write(f"{ticker},{datetime.datetime.today().strftime('%Y-%m-%d')}\n")
-
-
-def get_supported_tickers(
-    url: str = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip",
-    supported_tickers_query: pathlib.Path = pathlib.Path("sql/supported_tickers.sql"),
-) -> duckdb.DuckDBPyConnection:
-    """Fetch the list of supported tickers from the Tiingo API."""
-    response = httpx.get(url)
-    zip_data = io.BytesIO(response.content)
-
-    con = duckdb.connect(":memory:")
-    create_table_query = supported_tickers_query.read_text()
-    con.execute(create_table_query)
-
-    with zipfile.ZipFile(zip_data, "r") as zip_ref:
-        csv_filename = zip_ref.namelist()[0]
-
-        with zip_ref.open(csv_filename) as csv_file:
-            with tempfile.NamedTemporaryFile(delete=False, mode='w+b') as temp_file:
-                temp_file.write(csv_file.read())
-                temp_file_path = temp_file.name
-
-            con.execute(f"COPY supported_tickers FROM '{temp_file_path}' (DELIMITER ',')")
-
-    return con
