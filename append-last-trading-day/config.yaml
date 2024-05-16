@@ -1,0 +1,15 @@
+extract:
+  backoff:
+    retry_wait_min: 1s
+    retry_wait_max: 30s
+    retry_max: 5
+
+duckdb:
+  path: ":memory:"
+
+tiingo:
+  format: csv
+
+
+
+

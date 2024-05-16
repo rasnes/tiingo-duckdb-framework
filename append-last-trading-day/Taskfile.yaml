@@ -1,0 +1,8 @@
+version: "3"
+
+tasks:
+  run:
+    desc: run main.go
+    dir: .
+    cmds:
+      - CGO_ENABLED=1 go run main.go
