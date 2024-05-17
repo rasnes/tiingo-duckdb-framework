@@ -1,4 +1,4 @@
-CREATE TABLE supported_tickers (
+create or replace table supported_tickers (
   ticker VARCHAR,
   exchange VARCHAR,
   assetType VARCHAR,

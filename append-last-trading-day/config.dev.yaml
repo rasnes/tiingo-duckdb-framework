@@ -1,0 +1,6 @@
+duckdb:
+  path: "./dev.db"
+
+
+
+

@@ -1,0 +1,19 @@
+extract:
+  backoff:
+    retry_wait_min: 1s
+    retry_wait_max: 30s
+    retry_max: 5
+
+duckdb:
+  append_table: daily_adjusted
+  conn_init_fn_queries:
+    - "../sql/table__last_trading_day.sql"
+    - "../sql/table__supported_tickers.sql"
+    - "../sql/view__selected_us_tickers.sql"
+
+tiingo:
+  format: csv
+
+
+
+

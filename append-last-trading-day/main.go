@@ -29,15 +29,15 @@ func main() {
 		return
 	}
 
-	db, err := extract.NewDuckDB("", logger)
+	db, err := extract.NewDuckDB(config, logger)
 	if err != nil {
-		logger.Error("Error creating DuckDB database: %v", err)
+		logger.Error("Error creating DB database: %v", err)
 		return
 	}
 	defer db.Close()
 
 	//// Create a table
-	//_, err = db.DuckDB.Exec("CREATE TABLE IF NOT EXISTS users (id INTEGER, name VARCHAR)")
+	//_, err = db.DB.Exec("CREATE TABLE IF NOT EXISTS users (id INTEGER, name VARCHAR)")
 	//if err != nil {
 	//	log.Fatal(err)
 	//}
@@ -62,6 +62,12 @@ func main() {
 	// print the first 10 lines of the CSV
 	fmt.Println(string(csvSupportedTickers[:100]))
 
+	err = db.LoadCSV(csvSupportedTickers, "supported_tickers")
+	if !errors.Is(nil, err) {
+		logger.Error("Error loading supported tickers into DB: %v", err)
+		return
+	}
+
 	lastTradingDay, err := httpClient.GetLastTradingDay()
 	if !errors.Is(nil, err) {
 		logger.Error("Error getting ticker data from last trading day: %v", err)
@@ -69,15 +75,14 @@ func main() {
 	}
 
 	// print the first 10 lines of the CSV
-	fmt.Println(string(lastTradingDay[:1000]))
+	fmt.Println(string(lastTradingDay[:300]))
+
+	err = db.LoadCSV(lastTradingDay, "last_trading_day")
 
 	// TODO:
-	// - Refactor the duckdb loader and methods to use the appender API.
-	// - Insert the CSV files into the DuckDB database
-	// - Create View for selectedUSTickers
 	// - Semi join lastTradingDay on selectedUSTickers
-	// - Insert the result into the DuckDB database, using the appender API
+	// - Insert the result into the DB database, using the INSERT INTO api
 	//   - Surface error in ingest as error, but handle it by logging WARN and continue
 	// - Create logic for reingesting history for a ticker. Could we reuse much from the Python code?
-	//
+
 }

@@ -17,7 +17,7 @@ overview of tickers available from Tiingo.
 ## Transform
 
 1. Transforms `supported_tickers.csv` to the selected list of tickers of interest. Via the
-`selected_us_tickers.sql` transform.
+`view__selected_us_tickers.sql` transform.
 2. Semi join results form API request to https://api.tiingo.com/tiingo/daily/prices with the
 `selected_us_tickers` VIEW. This filtering makes sure we're not ingesting unneeded data to 
 the Motherduck table.
