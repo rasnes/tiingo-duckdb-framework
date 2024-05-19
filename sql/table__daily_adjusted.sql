@@ -1,4 +1,5 @@
-CREATE TABLE daily_adjusted (
+-- TODO: maybe include type (stock/etf) and/or stock exchange?
+create table daily_adjusted (
   date DATE,
   close DECIMAL,
   adjClose DECIMAL,

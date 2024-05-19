@@ -5,4 +5,4 @@ create or replace table supported_tickers (
   priceCurrency VARCHAR,
   startDate DATE,
   endDate DATE
-)
+);

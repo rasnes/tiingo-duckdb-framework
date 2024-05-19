@@ -7,7 +7,8 @@ extract:
 duckdb:
   append_table: daily_adjusted
   conn_init_fn_queries:
-    - "../sql/table__last_trading_day.sql"
+    # - "../sql/table__last_trading_day.sql"
+#    - "../sql/table__daily_adjusted.sql"
     - "../sql/table__supported_tickers.sql"
     - "../sql/view__selected_us_tickers.sql"
 

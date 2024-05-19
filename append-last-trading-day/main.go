@@ -68,21 +68,40 @@ func main() {
 		return
 	}
 
-	lastTradingDay, err := httpClient.GetLastTradingDay()
+	//lastTradingDay, err := httpClient.GetLastTradingDay()
+	//if !errors.Is(nil, err) {
+	//	logger.Error("Error getting ticker data from last trading day: %v", err)
+	//	return
+	//}
+	//
+	//// print the first 10 lines of the CSV
+	//fmt.Println(string(lastTradingDay[:300]))
+	//
+	//err = db.LoadCSV(lastTradingDay, "last_trading_day")
+	//if !errors.Is(nil, err) {
+	//	logger.Error("Error loading last trading day into DB: %v", err)
+	//	return
+	//}
+
+	err = db.RunQueryFile("../sql/view__selected_us_tickers.sql")
 	if !errors.Is(nil, err) {
-		logger.Error("Error getting ticker data from last trading day: %v", err)
+		logger.Error("Error creating view selected_us_tickers: %v", err)
 		return
 	}
 
-	// print the first 10 lines of the CSV
-	fmt.Println(string(lastTradingDay[:300]))
+	//err = db.RunQueryFile("../sql/table__daily_adjusted.sql")
+	//if !errors.Is(nil, err) {
+	//	logger.Error("Error creating table daily_adjusted: %v", err)
+	//	return
+	//}
 
-	err = db.LoadCSV(lastTradingDay, "last_trading_day")
+	err = db.RunQueryFile("../sql/insert__last_trading_day.sql")
+	if !errors.Is(nil, err) {
+		logger.Error("Error inserting last trading day into daily_adjusted: %v", err)
+		return
+	}
+	// TODO: why doesn't insert happen! No rows are inserted.
 
 	// TODO:
-	// - Semi join lastTradingDay on selectedUSTickers
-	// - Insert the result into the DB database, using the INSERT INTO api
-	//   - Surface error in ingest as error, but handle it by logging WARN and continue
 	// - Create logic for reingesting history for a ticker. Could we reuse much from the Python code?
-
 }

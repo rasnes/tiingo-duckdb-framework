@@ -47,22 +47,9 @@ func NewDuckDB(config *config.Config, logger *slog.Logger) (*DuckDB, error) {
 	} else {
 		connInitFn = func(exec driver.ExecerContext) error {
 			for _, path := range config.DuckDB.ConnInitFnQueries {
-				// Open the file
-				file, err := os.Open(path)
+				query, err := readQuery(path)
 				if err != nil {
-					return fmt.Errorf("failed to open file %s: %w", path, err)
-				}
-
-				// Read the content of the file
-				query, err := io.ReadAll(file)
-				if err != nil {
-					file.Close() // Ensure the file is closed if reading fails
-					return fmt.Errorf("failed to read file %s: %w", path, err)
-				}
-
-				// Close the file after reading its content
-				if err := file.Close(); err != nil {
-					return fmt.Errorf("failed to close file %s: %w", path, err)
+					return err
 				}
 
 				// Execute the query read from the file
@@ -100,6 +87,27 @@ func NewDuckDB(config *config.Config, logger *slog.Logger) (*DuckDB, error) {
 	}, nil
 }
 
+func readQuery(path string) ([]byte, error) {
+	// Open the file
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
+	}
+
+	// Read the content of the file
+	query, err := io.ReadAll(file)
+	if err != nil {
+		file.Close() // Ensure the file is closed if reading fails
+		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
+	}
+
+	// Close the file after reading its content
+	if err := file.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close file %s: %w", path, err)
+	}
+	return query, nil
+}
+
 func (db *DuckDB) Close() {
 	db.DB.Close()
 	db.Connector.Close()
@@ -128,6 +136,28 @@ func (db *DuckDB) LoadCSV(csv []byte, table string) error {
 	query := fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, HEADER)", table, tmpFile.Name())
 	if _, err := db.DB.ExecContext(context.Background(), query); err != nil {
 		return fmt.Errorf("failed to execute COPY statement: %w", err)
+	}
+
+	return nil
+}
+
+func (db *DuckDB) RunQuery(query string) error {
+	_, err := db.DB.ExecContext(context.Background(), query)
+	if err != nil {
+		return fmt.Errorf("failed to execute query: %w", err)
+	}
+	return nil
+}
+
+func (db *DuckDB) RunQueryFile(path string) error {
+	query, err := readQuery(path)
+	if err != nil {
+		return err
+	}
+
+	err = db.RunQuery(string(query))
+	if err != nil {
+		return err
 	}
 
 	return nil
