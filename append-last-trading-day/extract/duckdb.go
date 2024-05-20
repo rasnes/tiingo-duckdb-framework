@@ -113,7 +113,7 @@ func (db *DuckDB) Close() {
 	db.Connector.Close()
 }
 
-func (db *DuckDB) LoadCSV(csv []byte, table string) error {
+func (db *DuckDB) LoadCSV(csv []byte, table string, insert bool) error {
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", "tmp.csv")
 	if err != nil {
@@ -132,10 +132,16 @@ func (db *DuckDB) LoadCSV(csv []byte, table string) error {
 		return fmt.Errorf("failed to close temporary file: %w", err)
 	}
 
+	// TODO: add support for also using the INSERT OR REPLACE INTO statement
 	// Use the COPY statement to read the data from the temporary file into DuckDB
-	query := fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, HEADER)", table, tmpFile.Name())
+	var query string
+	if insert {
+		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s');", table, tmpFile.Name())
+	} else {
+		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, HEADER);", table, tmpFile.Name())
+	}
 	if _, err := db.DB.ExecContext(context.Background(), query); err != nil {
-		return fmt.Errorf("failed to execute COPY statement: %w", err)
+		return fmt.Errorf("failed to execute COPY or INSERT OR REPLACE INTO statement: %w", err)
 	}
 
 	return nil
@@ -155,10 +161,66 @@ func (db *DuckDB) RunQueryFile(path string) error {
 		return err
 	}
 
-	err = db.RunQuery(string(query))
+	return db.RunQuery(string(query))
+}
+
+func (db *DuckDB) GetQueryResultsFromFile(path string) (map[string][]string, error) {
+	query, err := readQuery(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return db.GetQueryResults(string(query))
+}
+
+// GetQueryResults executes a query and returns the results as a map of column names to slices of values
+func (db *DuckDB) GetQueryResults(query string) (map[string][]string, error) {
+	// Execute the query
+	rows, err := db.DB.QueryContext(context.Background(), query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	// Get column names
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get columns: %w", err)
+	}
+
+	// Initialize a map to hold slices for each column
+	results := make(map[string][]string)
+	for _, col := range columns {
+		results[col] = []string{}
+	}
+
+	// Iterate over the rows
+	for rows.Next() {
+		// Create a slice to hold the column values
+		values := make([]interface{}, len(columns))
+		// Create a slice of pointers to the column values
+		valuePtrs := make([]interface{}, len(columns))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		// Scan the row into the value pointers
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Append the values to the corresponding slices in the results map
+		for i, col := range columns {
+			// Convert the value to a string
+			valueStr := fmt.Sprintf("%v", values[i])
+			results[col] = append(results[col], valueStr)
+		}
+	}
+
+	// Check for errors from iterating over rows
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over rows: %w", err)
+	}
+
+	return results, nil
 }

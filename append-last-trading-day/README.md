@@ -5,6 +5,16 @@ and appends to the Motherduck table(s).
 
 ## TODO
 
+- Refactor packages: remove transform and/or load? Move duckdb somewhere else, or name a new package for it?
+- Add tests to all relevant functions and methods
+  - There should be good test coverage, since I don't want things breaking in prod often.
+  - fetch.GetLastTradingDay should handle response edge cases. Maybe an exponential backoff or
+    sleep if unfamiliar response occurs?
+- Add docstrings to all functions and methods
+  - Remove redundant explanatory strings by GhatGPT
+- Get things running in Motherduck.
+  - Consider registrating twice on motherduck, to have a staging environment in addition to prod.
+  - Or, maybe not, since I have the 30-day trial ATM.
 
 ## Extract
 

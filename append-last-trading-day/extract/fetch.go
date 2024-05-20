@@ -11,15 +11,13 @@ import (
 	"os"
 )
 
-func Foo() {
-	fmt.Println("Foo")
-}
-
 type Client struct {
-	HTTPClient   *retryablehttp.Client
-	Logger       *slog.Logger
-	TiingoFormat string
-	tiingoToken  string
+	HTTPClient      *retryablehttp.Client
+	Logger          *slog.Logger
+	TiingoFormat    string
+	TiingoStartDate string
+	TiingoColumns   string
+	tiingoToken     string
 }
 
 func NewClient(config *config.Config, logger *slog.Logger) (*Client, error) {
@@ -29,10 +27,12 @@ func NewClient(config *config.Config, logger *slog.Logger) (*Client, error) {
 	}
 
 	client := &Client{
-		HTTPClient:   retryablehttp.NewClient(),
-		Logger:       logger,
-		TiingoFormat: config.Tiingo.Format,
-		tiingoToken:  tiingoToken,
+		HTTPClient:      retryablehttp.NewClient(),
+		Logger:          logger,
+		TiingoFormat:    config.Tiingo.Format,
+		TiingoStartDate: config.Tiingo.StartDate,
+		TiingoColumns:   config.Tiingo.Columns,
+		tiingoToken:     tiingoToken,
 	}
 
 	client.HTTPClient.RetryWaitMin = config.Extract.Backoff.RetryWaitMin
@@ -43,8 +43,8 @@ func NewClient(config *config.Config, logger *slog.Logger) (*Client, error) {
 	return client, nil
 }
 
-// AddTiingoConfigToURL adds the Tiingo token to the URL
-func (c *Client) AddTiingoConfigToURL(rawURL string) (string, error) {
+// addTiingoConfigToURL adds the Tiingo token to the URL
+func (c *Client) addTiingoConfigToURL(rawURL string, history bool) (string, error) {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
@@ -53,6 +53,10 @@ func (c *Client) AddTiingoConfigToURL(rawURL string) (string, error) {
 	query := parsedURL.Query()
 	query.Set("token", c.tiingoToken)
 	query.Set("format", c.TiingoFormat)
+	if history {
+		query.Set("startDate", c.TiingoStartDate)
+		query.Set("columns", c.TiingoColumns)
+	}
 	parsedURL.RawQuery = query.Encode()
 
 	return parsedURL.String(), nil
@@ -61,13 +65,8 @@ func (c *Client) AddTiingoConfigToURL(rawURL string) (string, error) {
 // GetSupportedTickers fetches the supported tickers from the Tiingo API and returns the zip file downloaded
 func (c *Client) GetSupportedTickers() ([]byte, error) {
 	url := "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
-	resp, err := c.HTTPClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, resp, err := c.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -81,25 +80,54 @@ func (c *Client) GetSupportedTickers() ([]byte, error) {
 
 // GetLastTradingDay fetches prices for all tickers on the last completed training day
 func (c *Client) GetLastTradingDay() ([]byte, error) {
-	url, err := c.AddTiingoConfigToURL("https://api.tiingo.com/tiingo/daily/prices")
+	url, err := c.addTiingoConfigToURL("https://api.tiingo.com/tiingo/daily/prices", false)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.HTTPClient.Get(url)
+	body, resp, err := c.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	fmt.Println(resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch the `prices` file, status: %s, body: %s", resp.Status, string(body))
 	}
 
 	return body, nil
+}
+
+func (c *Client) GetHistory(ticker string) ([]byte, error) {
+	url, err := c.addTiingoConfigToURL(fmt.Sprintf("https://api.tiingo.com/tiingo/daily/%s/prices", ticker), true)
+	if err != nil {
+		return nil, err
+	}
+
+	body, resp, err := c.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch the `prices` file for ticker %s, status: %s, body: %s", ticker, resp.Status, string(body))
+	}
+
+	return body, nil
+}
+
+// Get fetches the URL and returns the body and response
+func (c *Client) Get(url string) (body []byte, resp *http.Response, err error) {
+	resp, err = c.HTTPClient.Get(url)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return body, resp, nil
 }

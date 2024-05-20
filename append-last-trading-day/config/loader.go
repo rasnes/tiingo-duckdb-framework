@@ -22,7 +22,9 @@ type Config struct {
 		ConnInitFnQueries []string `mapstructure:"conn_init_fn_queries"`
 	}
 	Tiingo struct {
-		Format string `mapstructure:"format"`
+		Format    string `mapstructure:"format"`
+		StartDate string `mapstructure:"start_date"`
+		Columns   string `mapstructure:"columns"`
 	}
 }
 

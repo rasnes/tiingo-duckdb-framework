@@ -1,4 +1,5 @@
 -- TODO: maybe include type (stock/etf) and/or stock exchange?
+-- NO: include that data as a dimension table, i.e. make a new view/table
 create table daily_adjusted (
   date DATE,
   close DECIMAL,
