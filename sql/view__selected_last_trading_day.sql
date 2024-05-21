@@ -9,4 +9,5 @@ create or replace view selected_last_trading_day as (
         divCash
     from last_trading_day
     where ticker in (select lower(ticker) from selected_us_tickers)
+    qualify row_number() over (partition by ticker order by divCash desc) = 1
 );

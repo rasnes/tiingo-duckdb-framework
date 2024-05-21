@@ -6,15 +6,33 @@ and appends to the Motherduck table(s).
 ## TODO
 
 - Refactor packages: remove transform and/or load? Move duckdb somewhere else, or name a new package for it?
+- Fix all logging issues
+  - `fmt.Sprintf` is needed if wanting to include variable interpolation in logging as part of `message`.
+- Handle duplicates in insert__last_trading_day.
+  - {"time":"2024-05-20T22:45:03.880005+02:00","level":"ERROR","msg":"Error inserting last trading day into daily_adjusted: %v","!BADKEY":"failed to execute query: Invalid Input Error: ON CONFLICT DO UPDATE can not update the same row twice in the same command. Ensure that no rows proposed for insertion within the same command have duplicate constrained values"}
+  - It was a little suspicious that I got almost the exact same stocks for backfill on May 20 as May 19.
+    Does it mean that `adj`usting takes several days? Or that the API is slow to update? Or an inaccuracy?
+    UPDATE: ran ingest again the next morning, now the list of stocks to backfill had changed significantly. Seems like
+    the API is available again before all data is correct. Even more reason to wait a bit with making requests to that API.
 - Add tests to all relevant functions and methods
   - There should be good test coverage, since I don't want things breaking in prod often.
   - fetch.GetLastTradingDay should handle response edge cases. Maybe an exponential backoff or
     sleep if unfamiliar response occurs?
+- Create Taskfile
 - Add docstrings to all functions and methods
   - Remove redundant explanatory strings by GhatGPT
 - Get things running in Motherduck.
   - Consider registrating twice on motherduck, to have a staging environment in addition to prod.
   - Or, maybe not, since I have the 30-day trial ATM.
+- Github
+  - Turn on `main` branch protection
+  - Configure CI/CD via the Taskfile with Actions, for linting and tests
+  - Configure scheduled batch job. In dedicated Actions file.
+
+### Maybe
+
+- Add backoff functionality for `md:` connections with DuckDB, in case of network failures?
+
 
 ## Extract
 
