@@ -9,23 +9,31 @@ import (
 )
 
 type Config struct {
-	Extract struct {
-		Backoff struct {
-			RetryWaitMin time.Duration `mapstructure:"retry_wait_min"`
-			RetryWaitMax time.Duration `mapstructure:"retry_wait_max"`
-			RetryMax     int           `mapstructure:"retry_max"`
-		}
-	}
-	DuckDB struct {
-		Path              string   `mapstructure:"path"`
-		AppendTable       string   `mapstructure:"append_table"`
-		ConnInitFnQueries []string `mapstructure:"conn_init_fn_queries"`
-	}
-	Tiingo struct {
-		Format    string `mapstructure:"format"`
-		StartDate string `mapstructure:"start_date"`
-		Columns   string `mapstructure:"columns"`
-	}
+	Extract ExtractConfig
+	DuckDB  DuckDBConfig
+	Tiingo  TiingoConfig
+}
+
+type ExtractConfig struct {
+	Backoff BackoffConfig
+}
+
+type BackoffConfig struct {
+	RetryWaitMin time.Duration `mapstructure:"retry_wait_min"`
+	RetryWaitMax time.Duration `mapstructure:"retry_wait_max"`
+	RetryMax     int           `mapstructure:"retry_max"`
+}
+
+type DuckDBConfig struct {
+	Path              string   `mapstructure:"path"`
+	AppendTable       string   `mapstructure:"append_table"`
+	ConnInitFnQueries []string `mapstructure:"conn_init_fn_queries"`
+}
+
+type TiingoConfig struct {
+	Format    string `mapstructure:"format"`
+	StartDate string `mapstructure:"start_date"`
+	Columns   string `mapstructure:"columns"`
 }
 
 func NewConfig() (*Config, error) {

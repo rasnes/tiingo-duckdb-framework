@@ -60,7 +60,7 @@ func NewDuckDB(config *config.Config, logger *slog.Logger) (*DuckDB, error) {
 			}
 			return nil
 		}
-		logger.Debug("Connection initialization queries: %v", config.DuckDB.ConnInitFnQueries)
+		logger.Debug(fmt.Sprintf("Connection initialization queries: %v", config.DuckDB.ConnInitFnQueries))
 	}
 
 	connector, err := duckdb.NewConnector(path, connInitFn)
@@ -76,7 +76,7 @@ func NewDuckDB(config *config.Config, logger *slog.Logger) (*DuckDB, error) {
 	case ":md:":
 		logger.Info("Connected to MotherDuck database")
 	default:
-		logger.Info("Connected to local DuckDB database at %s", dbType)
+		logger.Info(fmt.Sprintf("Connected to local DuckDB database at %s", dbType))
 	}
 
 	return &DuckDB{
@@ -182,7 +182,7 @@ func (db *DuckDB) GetQueryResults(query string) (map[string][]string, error) {
 	}
 	defer rows.Close()
 
-	// Get column names
+	// get column names
 	columns, err := rows.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get columns: %w", err)

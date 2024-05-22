@@ -6,3 +6,9 @@ tasks:
     dir: .
     cmds:
       - CGO_ENABLED=1 go run main.go
+
+  test:
+    desc: run tests
+    dir: .
+    cmds:
+      - go test -v ./...
