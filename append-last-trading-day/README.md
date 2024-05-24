@@ -5,16 +5,12 @@ and appends to the Motherduck table(s).
 
 ## TODO
 
-- Add tests to all relevant functions and methods
-  - There should be good test coverage, since I don't want things breaking in prod often.
-  - fetch.GetLastTradingDay should handle response edge cases. Maybe an exponential backoff or
-    sleep if unfamiliar response occurs?
-- Create Taskfile
-- Add docstrings to all functions and methods
-  - Remove redundant explanatory strings by GhatGPT
 - Get things running in Motherduck.
   - Consider registering twice on motherduck, to have a staging environment in addition to prod.
   - Or, maybe not, since I have the 30-day trial ATM.
+- Create Taskfile
+- Add docstrings to all functions and methods
+  - Remove redundant explanatory strings by GhatGPT
 - Github
   - Turn on `main` branch protection
   - Configure CI/CD via the Taskfile with Actions, for linting and tests
@@ -22,6 +18,8 @@ and appends to the Motherduck table(s).
 
 ### Maybe
 
+- fetch.GetLastTradingDay should handle response edge cases. Maybe an exponential backoff or
+  sleep if unfamiliar response occurs?
 - Add backoff functionality for `md:` connections with DuckDB, in case of network failures?
   - Or make a decorator that wraps backoff on the entire pipeline? I kind of like that pattern.
 - Handle duplicates in insert__last_trading_day.

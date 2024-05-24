@@ -46,17 +46,17 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 	// Batch jobs should be scheduled to a time when the API is guaranteed to return data.
 	// Sound like 05:00 UTC, or something like that, is a good time.
 
-	//lastTradingDay, err := httpClient.GetLastTradingDay()
-	//if err != nil {
-	//	return fmt.Errorf("error getting ticker data from last trading day: %v", err)
-	//}
-	//
-	//// TODO: remove below
-	//fmt.Println("Last trading day:", string(lastTradingDay[:300]))
-	//
-	//if err := db.LoadCSV(lastTradingDay, "last_trading_day", false); err != nil {
-	//	return fmt.Errorf("error loading last_trading_day into DB: %v", err)
-	//}
+	lastTradingDay, err := httpClient.GetLastTradingDay()
+	if err != nil {
+		return 0, fmt.Errorf("error getting ticker data from last trading day: %v", err)
+	}
+
+	// TODO: remove below
+	fmt.Println("Last trading day:", string(lastTradingDay[:3000]))
+
+	if err := db.LoadCSV(lastTradingDay, "last_trading_day", false); err != nil {
+		return 0, fmt.Errorf("error loading last_trading_day into DB: %v", err)
+	}
 
 	if err := db.RunQueryFile("../sql/insert__last_trading_day.sql"); err != nil {
 		return 0, fmt.Errorf("error inserting last trading day into daily_adjusted: %v", err)

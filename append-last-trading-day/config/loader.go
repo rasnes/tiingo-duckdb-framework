@@ -12,6 +12,7 @@ type Config struct {
 	Extract ExtractConfig
 	DuckDB  DuckDBConfig
 	Tiingo  TiingoConfig
+	Env     string
 }
 
 type ExtractConfig struct {
@@ -60,6 +61,7 @@ func NewConfig() (*Config, error) {
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
+	config.Env = env
 
 	return &config, nil
 }

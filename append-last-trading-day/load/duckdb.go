@@ -31,7 +31,7 @@ func NewDuckDB(config *config.Config, logger *slog.Logger) (*DuckDB, error) {
 		if motherduckToken == "" {
 			return nil, fmt.Errorf("MOTHERDUCK_TOKEN env variable is not set")
 		}
-		path = fmt.Sprintf("md:?motherduck_token=%s", motherduckToken)
+		path = fmt.Sprintf("%s?motherduck_token=%s", config.DuckDB.Path, motherduckToken)
 		dbType = ":md:"
 	} else if config.DuckDB.Path == "" || config.DuckDB.Path == ":memory:" {
 		path = ""
