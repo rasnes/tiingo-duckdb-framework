@@ -1,0 +1,168 @@
+package load
+
+import (
+	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/config"
+	"github.com/stretchr/testify/assert"
+	"log/slog"
+	"os"
+	"testing"
+)
+
+func setupTestDB(t *testing.T) *DuckDB {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{
+		DuckDB: config.DuckDBConfig{
+			Path: ":memory:",
+		},
+	}
+
+	db, err := NewDuckDB(cfg, logger)
+	if err != nil {
+		t.Fatalf("Failed to create DuckDB instance: %v", err)
+	}
+
+	return db
+}
+
+func TestNewDuckDB(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	assert.NotNil(t, db.DB)
+}
+
+func TestLoadCSV(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create a test table
+	createTableQuery := "CREATE TABLE test (id INTEGER, name STRING);"
+	err := db.RunQuery(createTableQuery)
+	assert.NoError(t, err)
+
+	// Load CSV data into the test table
+	csvData := []byte("id,name\n1,Alice\n2,Bob")
+	err = db.LoadCSV(csvData, "test", false)
+	assert.NoError(t, err)
+
+	// Verify the data was loaded correctly
+	query := "SELECT * FROM test;"
+	results, err := db.GetQueryResults(query)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]string{
+		"id":   {"1", "2"},
+		"name": {"Alice", "Bob"},
+	}, results)
+}
+
+func TestRunQuery(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create a test table
+	createTableQuery := "CREATE TABLE test (id INTEGER, name STRING);"
+	err := db.RunQuery(createTableQuery)
+	assert.NoError(t, err)
+
+	// Insert data into the test table
+	insertQuery := "INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob');"
+	err = db.RunQuery(insertQuery)
+	assert.NoError(t, err)
+
+	// Verify the data was inserted correctly
+	query := "SELECT * FROM test;"
+	results, err := db.GetQueryResults(query)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]string{
+		"id":   {"1", "2"},
+		"name": {"Alice", "Bob"},
+	}, results)
+}
+
+func TestRunQueryFile(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create a temporary query file
+	query := "CREATE TABLE test (id INTEGER, name STRING);"
+	tmpFile, err := os.CreateTemp("", "query.sql")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(query)
+	assert.NoError(t, err)
+	err = tmpFile.Close()
+	assert.NoError(t, err)
+
+	// Run the query from the file
+	err = db.RunQueryFile(tmpFile.Name())
+	assert.NoError(t, err)
+
+	// Verify the table was created
+	query = "SELECT * FROM test;"
+	results, err := db.GetQueryResults(query)
+	assert.NoError(t, err)
+
+	// Check that the columns are present but no rows exist
+	expectedResults := map[string][]string{
+		"id":   {},
+		"name": {},
+	}
+	assert.Equal(t, expectedResults, results)
+}
+
+func TestGetQueryResults(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create a test table and insert data
+	createTableQuery := "CREATE TABLE test (id INTEGER, name STRING);"
+	err := db.RunQuery(createTableQuery)
+	assert.NoError(t, err)
+
+	insertQuery := "INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob');"
+	err = db.RunQuery(insertQuery)
+	assert.NoError(t, err)
+
+	// Get query results
+	query := "SELECT * FROM test;"
+	results, err := db.GetQueryResults(query)
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]string{
+		"id":   {"1", "2"},
+		"name": {"Alice", "Bob"},
+	}, results)
+}
+
+func TestGetQueryResultsFromFile(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create a test table and insert data
+	createTableQuery := "CREATE TABLE test (id INTEGER, name STRING);"
+	err := db.RunQuery(createTableQuery)
+	assert.NoError(t, err)
+
+	insertQuery := "INSERT INTO test VALUES (1, 'Alice'), (2, 'Bob');"
+	err = db.RunQuery(insertQuery)
+	assert.NoError(t, err)
+
+	// Create a temporary query file
+	query := "SELECT * FROM test;"
+	tmpFile, err := os.CreateTemp("", "query.sql")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(query)
+	assert.NoError(t, err)
+	err = tmpFile.Close()
+	assert.NoError(t, err)
+
+	// Get query results from the file
+	results, err := db.GetQueryResultsFromFile(tmpFile.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]string{
+		"id":   {"1", "2"},
+		"name": {"Alice", "Bob"},
+	}, results)
+}
