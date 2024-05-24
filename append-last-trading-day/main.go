@@ -6,12 +6,16 @@ import (
 	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/config"
 	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/logger"
 	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/pipeline"
+	"os"
 )
 
 func main() {
 	logger := logger.NewLogger()
-	if err := godotenv.Load(); err != nil {
-		logger.Error("Error loading .env file")
+	if !isRunningOnGitHubActions() {
+		err := godotenv.Load()
+		if err != nil {
+			logger.Error("Error loading .env file")
+		}
 	}
 	config, err := config.NewConfig()
 	if err != nil {
@@ -29,4 +33,8 @@ func main() {
 		return
 	}
 	logger.Info(fmt.Sprintf("Batch job completed without errors. Backfilled %d tickers", nTickers))
+}
+
+func isRunningOnGitHubActions() bool {
+	return os.Getenv("GITHUB_ACTIONS") == "true"
 }
