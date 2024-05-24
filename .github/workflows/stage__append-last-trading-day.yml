@@ -1,0 +1,38 @@
+name: stage__append-last-trading-day
+
+on:
+  schedule:
+    - cron: '0 5 * * 2-6'  # Runs at 05:00 UTC on Tue, Wed, Thu, Fri, Sat
+  workflow_dispatch:
+
+jobs:
+  run-main-go:
+    runs-on: ubuntu-latest
+    environment: stage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22' # Specify the Go version you need
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run main.go
+        run: CGO_ENABLED=1 go run append-last-trading-day/main.go
+        env:
+          TIINGO_TOKEN: ${{ secrets.TIINGO_TOKEN }}
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          APP_ENV: ${{ vars.APP_ENV }}
