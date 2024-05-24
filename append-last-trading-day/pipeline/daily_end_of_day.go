@@ -30,29 +30,14 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 		return 0, fmt.Errorf("error unzipping supported_tickers.csv.zip: %v", err)
 	}
 
-	// TODO: remove below. print the first 10 lines of the CSV
-	fmt.Println(string(csvSupportedTickers[:100]))
-
 	if err := db.LoadCSV(csvSupportedTickers, "supported_tickers", false); err != nil {
 		return 0, fmt.Errorf("error loading supported_tickers.csv into DB: %v", err)
 	}
-
-	// TODO: handle special case with 200 OK and this body: {"detail":"Not found."}
-	// Not sure when it occurs, but might be close to current day's market closing time
-	// E.g. now it is 22:20 in Oslo, Norway and markets closed at 22:00
-	// UPDATE: at 22:40, the API returned data again. My guess is that this is consistent.
-	// Investigate if this timing issue is consistent.
-	// If so, that's good. Much better than this occurring randomly.
-	// Batch jobs should be scheduled to a time when the API is guaranteed to return data.
-	// Sound like 05:00 UTC, or something like that, is a good time.
 
 	lastTradingDay, err := httpClient.GetLastTradingDay()
 	if err != nil {
 		return 0, fmt.Errorf("error getting ticker data from last trading day: %v", err)
 	}
-
-	// TODO: remove below
-	fmt.Println("Last trading day:", string(lastTradingDay[:3000]))
 
 	if err := db.LoadCSV(lastTradingDay, "last_trading_day", false); err != nil {
 		return 0, fmt.Errorf("error loading last_trading_day into DB: %v", err)
@@ -74,9 +59,6 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 	if len(tickers) == 0 {
 		return 0, nil
 	}
-
-	// TODO: remove below
-	fmt.Println(tickers)
 
 	nTickers, err := backfillTickers(tickers, httpClient, logger, db)
 	if err != nil {
