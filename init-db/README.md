@@ -4,15 +4,6 @@ Python classes and functions for initializing a DuckDB/Motherduck database with 
 
 Personally, I use the `init.ipynb` notebook to run the fetch and ingest jobs, but you could easily compose the same functionality into a `.py`-file if you prefer that.
 
-## TODO
-
-Once the above is completed, start with the Go ingest:
-
-- Use the appender API for the "regular" daily ingest.
-  - If the ingest fails due to primary key constraints, assume that the data already is present in the table. I.e. ignore error.
-  - If a stock has splitFactor != 1 or divCash > 0: backfill entire history with the `INSERT OR REPLACE INTO tbl` DuckDB API.
-    - Investigate how time-consuming this is, try with e.g. Apple.
-
 
 ## TODO longer term
 

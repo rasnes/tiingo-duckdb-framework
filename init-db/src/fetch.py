@@ -37,7 +37,7 @@ def _save_to_csv_with_ticker_col(
 
 def get_supported_tickers(
     url: str = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip",
-    supported_tickers_query: pathlib.Path = pathlib.Path("sql/supported_tickers.sql"),
+    supported_tickers_query: pathlib.Path = pathlib.Path("../sql/table__supported_tickers.sql"),
 ) -> duckdb.DuckDBPyConnection:
     """Fetch the list of supported tickers from the Tiingo API.
 
