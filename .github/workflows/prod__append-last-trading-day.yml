@@ -1,0 +1,49 @@
+name: prod__append-last-trading-day
+
+on:
+  schedule:
+    - cron: '0 4,7 * * 2-6'  # Runs at 04:00 and 07:00 UTC on Tue, Wed, Thu, Fri, Sat
+      # Why not the rerun at 07:00 conditional on 04:00 pipeline failure? Since
+      # I have experienced that the API has response 200 OK but with incorrect data.
+      # This issue seems to occur (hopefully only) the first hour or so after US
+      # market closing hours. I guess Tiingo batch jobs for updating the data is running
+      # behind the scenes. Better API behavior in that case is either empty response
+      # {"content": "please wait until HH:MM UTC for available data"} or an HTTP 4xx
+      # error code with an explantory body. Risk of inaccurate data is the worst!
+      # So, I'll do rerun of the exact same workflow some hours later which should,
+      # hopefully improve reliability both wrt. API connectivity and data quality.
+  workflow_dispatch:
+
+jobs:
+  run-main-go:
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22' # Specify the Go version you need
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('append-last-trading-day/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: cd append-last-trading-day && go mod download
+
+      - name: Run main.go
+        run: |
+          cd append-last-trading-day
+          CGO_ENABLED=1 go run main.go
+        env:
+          TIINGO_TOKEN: ${{ secrets.TIINGO_TOKEN }}
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          APP_ENV: ${{ vars.APP_ENV }}
