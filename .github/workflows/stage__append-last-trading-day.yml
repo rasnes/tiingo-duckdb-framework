@@ -1,8 +1,8 @@
 name: stage__append-last-trading-day
 
 on:
-  schedule:
-    - cron: '0 5 * * 2-6'  # Runs at 05:00 UTC on Tue, Wed, Thu, Fri, Sat
+  # schedule:
+  #   - cron: '0 5 * * 2-6'  # Runs at 05:00 UTC on Tue, Wed, Thu, Fri, Sat
   workflow_dispatch:
 
 jobs:
