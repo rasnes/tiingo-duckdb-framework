@@ -10,8 +10,8 @@ on:
       # behind the scenes. Better API behavior in that case is either empty response
       # {"content": "please wait until HH:MM UTC for available data"} or an HTTP 4xx
       # error code with an explantory body. Risk of inaccurate data is the worst!
-      # So, I'll do rerun of the exact same workflow some hours later which should,
-      # hopefully improve reliability both wrt. API connectivity and data quality.
+      # So, I'll schedule a rerun of the exact same workflow some hours later, which should,
+      # hopefully improve reliability of ingest job both wrt. API connectivity and data quality.
   workflow_dispatch:
 
 jobs:
