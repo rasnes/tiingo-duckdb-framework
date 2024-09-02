@@ -5,21 +5,31 @@ and appends to the Motherduck table(s).
 
 ## TODO
 
-- Get things running in Motherduck.
-  - Consider registering twice on motherduck, to have a staging environment in addition to prod.
-  - Or, maybe not, since I have the 30-day trial ATM.
+- Should I run an `ANALYSE;` statement after INSERT or replace?
 - Create Taskfile
+  - For running linter, tests etc. on `main` PRs
 - Add docstrings to all functions and methods
   - Remove redundant explanatory strings by GhatGPT
 - Github
   - Turn on `main` branch protection
   - Configure CI/CD via the Taskfile with Actions, for linting and tests
   - Configure scheduled batch job. In dedicated Actions file.
+    - Consider making running the cron job twice, with 6h in between or so.
+      The API isn't always that stable, and it would annoying getting frequent
+      gaps in the data. Possible to make it conditional on failure of 1st pipeline?
 
 ### Maybe
 
 - fetch.GetLastTradingDay should handle response edge cases. Maybe an exponential backoff or
   sleep if unfamiliar response occurs?
+  // TODO: handle special case with 200 OK and this body: {"detail":"Not found."}
+  // Not sure when it occurs, but might be close to current day's market closing time
+  // E.g. now it is 22:20 in Oslo, Norway and markets closed at 22:00
+  // UPDATE: at 22:40, the API returned data again. My guess is that this is consistent.
+  // Investigate if this timing issue is consistent.
+  // If so, that's good. Much better than this occurring randomly.
+  // Batch jobs should be scheduled to a time when the API is guaranteed to return data.
+  // Sound like 05:00 UTC, or something like that, is a good time.
 - Add backoff functionality for `md:` connections with DuckDB, in case of network failures?
   - Or make a decorator that wraps backoff on the entire pipeline? I kind of like that pattern.
 - Handle duplicates in insert__last_trading_day.
@@ -29,6 +39,7 @@ and appends to the Motherduck table(s).
     UPDATE: ran ingest again the next morning, now the list of stocks to backfill had changed significantly. Seems like
     the API is available again before all data is correct. Even more reason to wait a bit with making requests to that API.
 
+    
 ## Extract
 
 Will perform two `GET` requests for data:
