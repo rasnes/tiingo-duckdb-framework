@@ -1,0 +1,35 @@
+version: '3'
+
+vars:
+  PY_PACKAGE_MANAGER: '{{.PY_PACKAGE_MANAGER | default "poetry"}}'
+
+tasks:
+  py:install:
+    desc: Install Python dependencies using the specified package manager
+    cmds:
+      - task: "py:{{.PY_PACKAGE_MANAGER}}:install"
+
+  py:update:
+    desc: Update Python dependencies using the specified package manager
+    cmds:
+      - task: "py:{{.PY_PACKAGE_MANAGER}}:update"
+
+  py:poetry:install:
+    desc: Install Python dependencies using poetry
+    cmds:
+      - poetry install
+
+  py:poetry:update:
+    desc: Update Python dependencies using poetry
+    cmds:
+      - poetry update
+
+  py:uv:install:
+    desc: Install Python dependencies using uv
+    cmds:
+      - uv pip install -r requirements.txt
+
+  py:uv:update:
+    desc: Update Python dependencies using uv
+    cmds:
+      - uv pip install --upgrade -r requirements.txt

@@ -1,0 +1,8 @@
+version: '3'
+
+includes:
+  root:
+    taskfile: ../Taskfile.yml
+    flatten: true
+    vars:
+      PY_PACKAGE_MANAGER: poetry
