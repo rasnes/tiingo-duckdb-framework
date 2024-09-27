@@ -69,7 +69,8 @@ def output_table(
     context: AssetExecutionContext, first_row: pl.LazyFrame, day_last_row: pl.LazyFrame
 ) -> MaterializeResult:
     db_config = context.resources.duckdb_config
-    out = pl.concat([first_row, day_last_row]).collect()
+    out_base = pl.concat([first_row, day_last_row]).collect()
+    out = out_base.with_columns(pl.col("_etl_loaded_at").cast(pl.Date64))
     write_table_duckdb("dagster_play_output", out, db_config)
 
     schema = [TableColumn(name=n, type=str(t)) for n, t in out.schema.items()]
