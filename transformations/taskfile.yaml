@@ -11,19 +11,27 @@ vars:
   PWD:
     sh: pwd
   DAGSTER_HOME: "{{.PWD}}/dagster"
+  DAGSTER_DEFAULT_FILE: src/dagster_play.py
 
 dotenv: ['.env']
 
 tasks:
   dagster:run:
-    desc: Run Dagster pipeline
-    vars:
-      PWD:
-        sh: pwd
+    desc: Run Dagster job
     cmds:
       - |
         if [ "{{.CLI_ARGS}}" != "" ]; then
           DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster job execute {{.CLI_ARGS}}
         else
-          DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster job execute -f dagster_play.py
+          DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster job execute -f {{.DAGSTER_DEFAULT_FILE}} -j __ASSET_JOB
+        fi
+
+  dagster:dev:
+    desc: Run Dagster dev server
+    cmds:
+      - |
+        if [ "{{.CLI_ARGS}}" != "" ]; then
+          DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster dev {{.CLI_ARGS}}
+        else
+          DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster dev -f {{.DAGSTER_DEFAULT_FILE}}
         fi

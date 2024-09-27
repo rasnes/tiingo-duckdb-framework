@@ -11,6 +11,7 @@ from dagster import (
     MetadataValue,
     TableColumn,
     TableSchema,
+    define_asset_job,
 )
 import polars as pl
 import duckdb
@@ -19,7 +20,7 @@ import duckdb
 @resource
 def duckdb_resource(_):
     return {
-        "database": f"""md:my_db?motherduck_token={environ["MOTHERDUCK_TOKEN"]}""",
+        "database": f"""md:{environ["APP_ENV"]}?motherduck_token={environ["MOTHERDUCK_TOKEN"]}""",
         "schema": "main",
     }
 
@@ -91,9 +92,12 @@ def output_table(
 #     out = pl.concat([first_row, day_last_row])
 #     out.collect().write_csv("output.csv")
 
+all_assets_job = define_asset_job(name="all_assets_job")
+
 defs = Definitions(
     assets=[daily_table, single_day, first_row, day_last_row, output_table],
     resources={
         "duckdb_config": duckdb_resource,
     },
+    jobs=[all_assets_job],
 )
