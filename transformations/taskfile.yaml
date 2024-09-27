@@ -5,4 +5,4 @@ includes:
     taskfile: ../Taskfile.yaml
     flatten: true
     vars:
-      PACKAGE_MANAGER: go
+      PACKAGE_MANAGER: uv

@@ -1,0 +1,130 @@
+version: '3'
+
+vars:
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "poetry"}}'
+  RUN_PREFIX: "{{.PACKAGE_MANAGER}} run"
+  RUN_PYTHON: "{{.RUN_PREFIX}} python"
+  # Deduce language from package manager: if go, go, else python
+  LANGUAGE: "{{if eq .PACKAGE_MANAGER \"go\"}}go{{else}}py{{end}}"
+
+tasks:
+  # General
+  install:
+    desc: Install dependencies
+    cmds:
+      - task: "{{.PACKAGE_MANAGER}}:install"
+
+  update:
+    desc: Update dependencies
+    cmds:
+      - task: "{{.PACKAGE_MANAGER}}:update"
+
+  test:
+    desc: Run all tests
+    cmds:
+      - task: "{{.LANGUAGE}}:test"
+
+
+  # Python
+  py:install:
+    desc: Install Python dependencies using the specified package manager
+    cmds:
+      - task: "{{.PACKAGE_MANAGER}}:install"
+
+  py:update:
+    desc: Update Python dependencies using the specified package manager
+    cmds:
+      - task: "{{.PACKAGE_MANAGER}}:update"
+
+  poetry:install:
+    desc: Install Python dependencies + create virtualenv and lock file using poetry
+    cmds:
+      - poetry install
+
+  poetry:update:
+    desc: Update Python dependencies using poetry
+    cmds:
+      - poetry update
+
+  uv:install:
+    desc: Install Python dependencies + create virtualenv and lock file using uv
+    cmds:
+      - uv sync
+
+  uv:update:
+    desc: Update Python dependencies using uv
+    cmds:
+      - uv lock --upgrade
+
+  py:lint:
+    desc: Check static typing with Ruff
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m ruff check . \
+        {{if (eq (.FIX | default "false") "true")}}--fix{{end}} \
+        {{if (eq (.VERBOSE | default "false") "true")}}--verbose{{end}} \
+
+  py:fmt:
+    desc: Format static typing with Ruff
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m ruff format .
+
+  py:typecheck:
+    desc: Typechecking via pyright
+    cmds:
+      - |
+        {{.RUN_PYTHON}} -m pyright . \
+        {{if (eq (.VERBOSE | default "false") "true")}}--verbose{{end}}
+
+  py:test:
+    desc: Run all python tests
+    aliases: [pytest]
+    cmds:
+      - "{{.RUN_PYTHON}} -m pytest tests"
+
+  py:check:
+    desc: Run all Python static code checks
+    cmds:
+      - task: fmt
+        vars: { FIX: false }
+      - task: lint
+        vars: { FIX: false }
+      - task: typecheck
+
+  py:fix:
+    desc: Fix all auto-fixable code check errors
+    cmds:
+      - task: fmt
+        vars: { FIX: true }
+      - task: lint
+        vars: { FIX: true }
+
+  py:validate:
+    desc: Validate python with static code checks and unit tests
+    cmds:
+      - task: check
+      - task: test
+
+  # Go
+  go:run:
+    desc: run main.go (with CGO enabled due to DuckDB API requirement)
+    cmds:
+      - CGO_ENABLED=1 go run main.go
+
+  go:test:
+    desc: run tests
+    cmds:
+      - go test -v ./...
+
+  go:install:
+    desc: install Go packages
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  go:update:
+    desc: update Go packages
+    cmds:
+      - go get -u ./...
+      - go mod tidy
