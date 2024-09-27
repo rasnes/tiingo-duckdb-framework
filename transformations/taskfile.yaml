@@ -6,3 +6,24 @@ includes:
     flatten: true
     vars:
       PACKAGE_MANAGER: uv
+
+vars:
+  PWD:
+    sh: pwd
+  DAGSTER_HOME: "{{.PWD}}/dagster"
+
+dotenv: ['.env']
+
+tasks:
+  dagster:run:
+    desc: Run Dagster pipeline
+    vars:
+      PWD:
+        sh: pwd
+    cmds:
+      - |
+        if [ "{{.CLI_ARGS}}" != "" ]; then
+          DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster job execute {{.CLI_ARGS}}
+        else
+          DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster job execute -f dagster_play.py
+        fi
