@@ -5,6 +5,10 @@ on:
     - cron: '0 5 * * 0'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   UV_LOCK_FILE: "**/transformations/uv.lock"
   UV_CACHE_DIR: "/home/runner/.cache/uv"
@@ -53,10 +57,24 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Authenticate gh CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Download Dagster artifact from previous run
+        run: gh run download --name dagster-play-state --dir dagster
+
       - name: Run Dagster pipeline
         run: task dagster:run
         env:
           CLI_ARGS: "-f dagster_play.py"
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
 
-
+      - name: Upload updated Dagster artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dagster-play-state
+          path: |
+            transformations/dagster/**
+            !transformations/dagster/dagster.yaml
+          retention-days: 8
+          overwrite: true
