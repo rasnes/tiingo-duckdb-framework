@@ -68,6 +68,7 @@ jobs:
         env:
           CLI_ARGS: "-f dagster_play.py"
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          APP_ENV: ${{ vars.APP_ENV }}
 
       - name: Upload updated Dagster artifact
         uses: actions/upload-artifact@v4
