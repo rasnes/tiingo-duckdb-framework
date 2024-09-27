@@ -14,7 +14,7 @@ def duckdb_connection():
 
 
 def test_create_selected_us_tickers_view(duckdb_connection):
-    sql_file_path = pathlib.Path("sql/selected_us_tickers.sql")
+    sql_file_path = pathlib.Path("../sql/view__selected_us_tickers.sql")
     assert sql_file_path.exists(), f"SQL file {sql_file_path} does not exist."
 
     # Create test data
