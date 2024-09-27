@@ -1,6 +1,7 @@
 # from dagster_duckdb import DuckDBResource
 # from dagster_duckdb_polars import DuckDBPolarsIOManager
 from os import environ
+import datetime
 from dagster import (
     Definitions,
     asset,
@@ -70,7 +71,7 @@ def output_table(
 ) -> MaterializeResult:
     db_config = context.resources.duckdb_config
     out_base = pl.concat([first_row, day_last_row]).collect()
-    out = out_base.with_columns(pl.col("_etl_loaded_at").cast(pl.Date64))
+    out = out_base.with_columns(_etl_loaded_at=datetime.datetime.now())
     write_table_duckdb("dagster_play_output", out, db_config)
 
     schema = [TableColumn(name=n, type=str(t)) for n, t in out.schema.items()]
