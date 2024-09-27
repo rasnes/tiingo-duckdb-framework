@@ -1,0 +1,62 @@
+name: dev__run-dagster
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+
+env:
+  UV_LOCK_FILE: "**/transformations/uv.lock"
+  UV_CACHE_DIR: "/home/runner/.cache/uv"
+
+jobs:
+  run-dagster:
+    runs-on: ubuntu-latest
+    environment: dev
+
+    defaults:
+      run:
+        working-directory: transformations
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of uv (pin it when going to prod!)
+        id: setup-uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ env.UV_LOCK_FILE }}
+
+      - name: Cache uv installs
+        uses: actions/cache@v4
+        id: uv-cache
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ runner.os }}-uv-${{ hashFiles(env.UV_LOCK_FILE) }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install python and dependencies via uv
+        if: steps.uv-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p $UV_CACHE_DIR
+          uv python install 3.12
+          uv sync
+          echo "Cache directory after uv sync:"
+          ls -R $UV_CACHE_DIR
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Dagster pipeline
+        run: task dagster:run
+        env:
+          CLI_ARGS: "-f dagster_play.py"
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+
+
