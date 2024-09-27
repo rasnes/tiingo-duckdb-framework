@@ -1,0 +1,46 @@
+name: dev__run-dagster
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+
+jobs:
+  run-dagster:
+    runs-on: ubuntu-latest
+    environment: stage
+
+    defaults:
+      run:
+        working-directory: transformations
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install the latest version of uv (pin it when going to prod!)
+        id: setup-uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/transformations/uv.lock"
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Dagster pipeline
+        run: task dagster:run
+        env:
+          CLI_ARGS: "-f dagster_play.py"
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+
+
