@@ -9,6 +9,9 @@ on:
     branches:
       - "*"
 
+env:
+  UV_LOCK_FILE: "**/transformations/uv.lock"
+  UV_CACHE_DIR: "/home/runner/.cache/uv"
 
 jobs:
   run-dagster:
@@ -28,27 +31,28 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-          cache-dependency-glob: "**/transformations/uv.lock"
+          cache-dependency-glob: ${{ env.UV_LOCK_FILE }}
 
       - name: Install Python
         run: uv python install 3.12
 
-      - name: Cache uv dependencies
+      - name: Cache uv installs
         uses: actions/cache@v4
         id: uv-cache
         with:
-          path: /home/runner/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/transformations/uv.lock') }}
+          path: ${{ env.UV_CACHE_DIR }}
+          key: ${{ runner.os }}-uv-${{ hashFiles(env.UV_LOCK_FILE) }}
           restore-keys: |
             ${{ runner.os }}-uv-
 
-      - name: Install dependencies
+      - name: Install python and dependencies via uv
         if: steps.uv-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p /home/runner/.cache/uv
+          mkdir -p $UV_CACHE_DIR
+          uv python install 3.12
           uv sync
           echo "Cache directory after uv sync:"
-          ls -R /home/runner/.cache/uv
+          ls -R $UV_CACHE_DIR
 
       - name: Install Task
         uses: arduino/setup-task@v2
