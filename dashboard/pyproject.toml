@@ -1,0 +1,26 @@
+[project]
+name = "dashboard"
+version = "0.1.0"
+description = "Dashboard for displaying Tiingo data and other data from Motherduck"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "altair>=5.4.1",
+    "duckdb==1.1.1",
+    "ibis-framework>=9.5.0",
+    "pyarrow-hotfix>=0.6",
+    "streamlit>=1.39.0",
+]
+
+[project.optional-dependencies]
+duckdb = [
+    "ibis-framework>=9.5.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "black>=24.10.0",
+    "pytest>=8.3.3",
+    "ruff>=0.6.9",
+    "watchdog>=5.0.3",
+]

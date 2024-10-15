@@ -1,0 +1,16 @@
+version: '3'
+
+includes:
+  root:
+    taskfile: ../Taskfile.yaml
+    flatten: true
+    vars:
+      PACKAGE_MANAGER: uv
+
+dotenv: ['.env']
+
+tasks:
+  streamlit:run:
+    desc: Run Streamlit app
+    cmds:
+      - uv run streamlit run src/dashboard.py --logger.level debug
