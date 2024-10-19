@@ -3,7 +3,7 @@ import datetime
 import streamlit as st
 import altair as alt
 
-import utils.duck as duck
+from utils import duck
 
 st.set_page_config(layout="wide")
 st.title("Dashboard")
@@ -13,10 +13,12 @@ st.table(t.limit(5).execute())
 
 daily = duck.Daily(t)
 
+
 # Cache all_tickers
 @st.cache_data
 def get_all_tickers():
     return daily.get_tickers().execute()
+
 
 all_tickers = get_all_tickers()
 
@@ -32,8 +34,8 @@ with col2:
 selected_tickers = st.multiselect(
     label="Select tickers",
     options=all_tickers.ticker,
-    default=st.session_state.selected_tickers,
-    key="ticker_select"
+    default=["AAPL", "GOOGL"],
+    key="ticker_select",
 )
 
 # Display the chart using the selected tickers

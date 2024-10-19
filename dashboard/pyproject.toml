@@ -8,6 +8,9 @@ dependencies = [
     "altair>=5.4.1",
     "duckdb==1.1.1",
     "ibis-framework>=9.5.0",
+    "nbconvert>=7.16.4",
+    "nbformat>=5.10.4",
+    "pathlib>=1.0.1",
     "pyarrow-hotfix>=0.6",
     "streamlit>=1.39.0",
 ]

@@ -13,4 +13,4 @@ tasks:
   streamlit:run:
     desc: Run Streamlit app
     cmds:
-      - uv run streamlit run src/dashboard.py --logger.level debug
+      - uv run streamlit run src/_router.py --logger.level debug
