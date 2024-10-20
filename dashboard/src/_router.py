@@ -1,5 +1,7 @@
 import streamlit as st
 
+st.logo("artifacts/pitchit_hq.png", size="large")
+
 dashboards = dict(
     main=st.Page(
         "dashboards/main.py",
