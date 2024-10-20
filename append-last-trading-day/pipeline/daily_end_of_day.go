@@ -60,7 +60,7 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 		return 0, nil
 	}
 
-	nTickers, err := backfillTickers(tickers, httpClient, logger, db)
+	nTickers, err := BackfillTickers(tickers, httpClient, logger, db)
 	if err != nil {
 		return nTickers, fmt.Errorf("error backfilling tickers: %v", err)
 	}
@@ -68,7 +68,7 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 	return len(tickers), nil
 }
 
-func backfillTickers(tickers []string, httpClient *extract.Client, logger *slog.Logger, db *load.DuckDB) (int, error) {
+func BackfillTickers(tickers []string, httpClient *extract.Client, logger *slog.Logger, db *load.DuckDB) (int, error) {
 	var errorList []error
 	for i, ticker := range tickers {
 		history, err := httpClient.GetHistory(ticker)

@@ -5,18 +5,34 @@ and appends to the Motherduck table(s).
 
 ## TODO
 
-- Should I run an `ANALYSE;` statement after INSERT or replace?
+- Make `main.go` into a CLI tool, which should make it easy to do backfills per Ticker, for example.
+- Make it simple to, from the CLI tool, to run EndOfDay and BackfillTickers (and design so that any new functions are easy to add). Code used for backfilling TSLA are shown below.
+
+```go
+db, err := load.NewDuckDB(config, logger)
+if err != nil {
+  logger.Error(fmt.Sprintf("Error creating DB database: %v", err))
+}
+defer db.Close()
+
+httpClient, err := extract.NewClient(config, logger)
+if err != nil {
+  logger.Error(fmt.Sprintf("Error creating HTTP client: %v", err))
+}
+
+n_success, err := pipeline.BackfillTickers([]string{"TSLA"}, httpClient, logger, db)
+if err != nil {
+  logger.Error(fmt.Sprintf("Error backfilling tickers: %v", err))
+}
+logger.Info(fmt.Sprintf("Backfilled %d tickers", n_success))
+```
+
 - Create Taskfile
   - For running linter, tests etc. on `main` PRs
 - Add docstrings to all functions and methods
   - Remove redundant explanatory strings by GhatGPT
-- Github
-  - Turn on `main` branch protection
-  - Configure CI/CD via the Taskfile with Actions, for linting and tests
-  - Configure scheduled batch job. In dedicated Actions file.
-    - Consider making running the cron job twice, with 6h in between or so.
-      The API isn't always that stable, and it would annoying getting frequent
-      gaps in the data. Possible to make it conditional on failure of 1st pipeline?
+- Add unit test to daily_end_of_day.BackfillTickers
+
 
 ### Maybe
 
@@ -39,12 +55,12 @@ and appends to the Motherduck table(s).
     UPDATE: ran ingest again the next morning, now the list of stocks to backfill had changed significantly. Seems like
     the API is available again before all data is correct. Even more reason to wait a bit with making requests to that API.
 
-    
+
 ## Extract
 
 Will perform two `GET` requests for data:
 
-1. https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip to get an updated 
+1. https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip to get an updated
 overview of tickers available from Tiingo.
 2. https://api.tiingo.com/tiingo/daily/prices to get end-of-day prices for all tickers
 
@@ -53,7 +69,7 @@ overview of tickers available from Tiingo.
 1. Transforms `supported_tickers.csv` to the selected list of tickers of interest. Via the
 `view__selected_us_tickers.sql` transform.
 2. Semi join results form API request to https://api.tiingo.com/tiingo/daily/prices with the
-`selected_us_tickers` VIEW. This filtering makes sure we're not ingesting unneeded data to 
+`selected_us_tickers` VIEW. This filtering makes sure we're not ingesting unneeded data to
 the Motherduck table.
 
 TODO: should the `failed_tickers.csv` be used any way? Currently, I think not, as it will complicate
