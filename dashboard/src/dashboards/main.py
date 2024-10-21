@@ -1,23 +1,23 @@
 import datetime
 
 import streamlit as st
-import altair as alt
+import ibis
+from ibis import _
+import polars as pl
 
 from utils import duck
 
 st.set_page_config(layout="wide")
 st.title("Dashboard")
 
-t = duck.ibis_con.table("daily_adjusted")
-st.table(t.limit(5).execute())
-
-daily = duck.Daily(t)
+md_daily_adjusted = duck.ibis_con.table("daily_adjusted")
+daily = duck.Daily(md_daily_adjusted)
 
 
 # Cache all_tickers
 @st.cache_data
 def get_all_tickers():
-    return daily.get_tickers().execute()
+    return daily.get_all_tickers().execute()
 
 
 all_tickers = get_all_tickers()
@@ -40,3 +40,32 @@ selected_tickers = st.multiselect(
 
 # Display the chart using the selected tickers
 duck.relative_chart(daily, selected_tickers, date_from, date_to)
+
+t: ibis.Table = daily.date_selection(selected_tickers, date_from, date_to)
+
+df_summary = (
+    t.to_polars().lazy()
+    .sort("date", descending=False)
+    .group_by("ticker")
+    .agg(
+        [
+            pl.col("date").last().alias("date"),
+            pl.col("adjClose").last().alias("adjClose"),
+            pl.col("adjClose").cast(pl.Int64).explode().alias("history"),
+        ]
+    )
+    .with_columns(
+        url="https://finance.yahoo.com/quote/" + pl.col("ticker").cast(pl.Utf8)
+    )
+)
+
+st.dataframe(
+    df_summary.collect(),
+    column_config={
+        "ticker": "Ticker",
+        "date": st.column_config.DateColumn("Date"),
+        "adjClose": "Adjusted Close",
+        "history": st.column_config.LineChartColumn("History", width="small"),
+        # "url": st.column_config.LinkColumn("Yahoo Finance"),
+    },
+)

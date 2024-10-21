@@ -11,6 +11,7 @@ dependencies = [
     "nbconvert>=7.16.4",
     "nbformat>=5.10.4",
     "pathlib>=1.0.1",
+    "polars>=1.10.0",
     "pyarrow-hotfix>=0.6",
     "streamlit>=1.39.0",
 ]
