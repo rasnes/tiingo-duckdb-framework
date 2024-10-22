@@ -106,6 +106,19 @@ tasks:
       - task: check
       - task: test
 
+  # Streamlit
+  streamlit:run:
+    desc: Run Streamlit app
+    cmds:
+      - dashboard/.venv/bin/python -m streamlit run dashboard/src/_router.py --logger.level debug
+
+  streamlit:deploy:
+    desc: Deploy Streamlit app to Streamlit Cloud
+    cmds:
+      - uv pip compile -q dashboard/pyproject.toml -o dashboard/requirements.txt
+      # - streamlit deploy dashboard/src/_router.py
+
+
   # Go
   go:run:
     desc: run main.go (with CGO enabled due to DuckDB API requirement)

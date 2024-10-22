@@ -2,13 +2,11 @@ import datetime
 
 import streamlit as st
 import ibis
-from ibis import _
 import polars as pl
 
 from utils import duck
 
 st.set_page_config(layout="wide")
-st.title("Dashboard")
 
 md_daily_adjusted = duck.ibis_con.table("daily_adjusted")
 daily = duck.Daily(md_daily_adjusted)
@@ -44,7 +42,8 @@ duck.relative_chart(daily, selected_tickers, date_from, date_to)
 t: ibis.Table = daily.date_selection(selected_tickers, date_from, date_to)
 
 df_summary = (
-    t.to_polars().lazy()
+    t.to_polars()
+    .lazy()
     .sort("date", descending=False)
     .group_by("ticker")
     .agg(
@@ -66,6 +65,6 @@ st.dataframe(
         "date": st.column_config.DateColumn("Date"),
         "adjClose": "Adjusted Close",
         "history": st.column_config.LineChartColumn("History", width="small"),
-        # "url": st.column_config.LinkColumn("Yahoo Finance"),
+        "url": st.column_config.LinkColumn("Yahoo Finance", display_text="Link"),
     },
 )

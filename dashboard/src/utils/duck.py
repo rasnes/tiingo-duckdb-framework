@@ -1,4 +1,3 @@
-from os import environ
 import duckdb
 import ibis
 from ibis.expr.types import Table
@@ -6,7 +5,7 @@ import streamlit as st
 import altair as alt
 
 motherduck_creds = (
-    f"md:{environ['APP_ENV']}?motherduck_token={environ['MOTHERDUCK_TOKEN']}"
+    f"md:{st.secrets['APP_ENV']}?motherduck_token={st.secrets['MOTHERDUCK_TOKEN']}"
 )
 
 md_con = duckdb.connect(motherduck_creds)
@@ -38,6 +37,7 @@ class Daily:
         Returns:
             An ibis expression representing the relative price of the stock.
         """
+        # TODO: maybe implement in Polars instead of Ibis?
         # Subquery to perform the aggregation
         t_agg: Table = (
             self.date_selection(tickers, start_date, end_date)
