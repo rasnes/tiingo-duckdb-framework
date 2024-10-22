@@ -110,14 +110,8 @@ tasks:
   streamlit:run:
     desc: Run Streamlit app
     cmds:
+      - uv pip compile -q dashboard/pyproject.toml -o requirements.txt # To keep dependencies in sync with Streamlit Cloud
       - dashboard/.venv/bin/python -m streamlit run dashboard/src/_router.py --logger.level debug
-
-  streamlit:deploy:
-    desc: Deploy Streamlit app to Streamlit Cloud
-    cmds:
-      - uv pip compile -q dashboard/pyproject.toml -o requirements.txt
-      # - streamlit deploy dashboard/src/_router.py
-
 
   # Go
   go:run:
