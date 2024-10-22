@@ -113,6 +113,11 @@ tasks:
       - uv pip compile -q dashboard/pyproject.toml -o requirements.txt # To keep dependencies in sync with Streamlit Cloud
       - dashboard/.venv/bin/python -m streamlit run dashboard/src/_router.py --logger.level debug
 
+  streamlit:upload:
+    desc: Upload files to Google Drive, for streamlit to fetch
+    cmds:
+      - rclone copy dashboard/src/notebooks/ private_google_drive:pitchit/notebooks/ --include "*.ipynb"
+
   # Go
   go:run:
     desc: run main.go (with CGO enabled due to DuckDB API requirement)

@@ -45,6 +45,10 @@ notebooks = dict(
         "notebooks/eda.py",
         icon=":material/insert_drive_file:",
     ),
+    init=st.Page(
+        "notebooks/init.py",
+        icon=":material/insert_drive_file:",
+    ),
 )
 
 pg = st.navigation(
