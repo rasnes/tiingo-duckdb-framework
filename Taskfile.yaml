@@ -115,7 +115,7 @@ tasks:
   streamlit:deploy:
     desc: Deploy Streamlit app to Streamlit Cloud
     cmds:
-      - uv pip compile -q dashboard/pyproject.toml -o dashboard/requirements.txt
+      - uv pip compile -q dashboard/pyproject.toml -o requirements.txt
       # - streamlit deploy dashboard/src/_router.py
 
 
