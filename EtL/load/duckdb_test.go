@@ -1,7 +1,7 @@
 package load
 
 import (
-	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
 	"os"

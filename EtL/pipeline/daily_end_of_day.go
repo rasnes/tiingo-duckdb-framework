@@ -3,9 +3,9 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/config"
-	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/extract"
-	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/load"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
 	"log/slog"
 )
 

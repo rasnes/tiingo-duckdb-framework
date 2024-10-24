@@ -3,7 +3,7 @@ package extract
 import (
 	"fmt"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"io"
 	"log/slog"
 	"net/http"
