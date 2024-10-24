@@ -1,7 +1,11 @@
-# append-last-trading-day
+# EtL
 
 Daily batch job running Tuesday-Saturday to get last trading day's end-of-day prices
 and appends to the Motherduck table(s).
+
+## Why `EtL` as the name of this directory/package?
+
+I prefer to load and transform data with the ELT (Extract, Load, Transform) framework. However, there is often a need for a small transformation between the Extract and the Load step, like cleaning up types filtering out some of the data. This part I like to call the small `t`, i.e. we end up with `EtLT`. For the main Transformations, see the sibling directory `transformations`.
 
 ## TODO
 

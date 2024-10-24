@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/marcboeker/go-duckdb"
 	_ "github.com/marcboeker/go-duckdb"
-	"github.com/rasnes/tiingo-duckdb-framework/append-last-trading-day/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"io"
 	"log/slog"
 	"os"

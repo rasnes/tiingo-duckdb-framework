@@ -26,23 +26,23 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22' # Specify the Go version you need
+          go-version: '1.23' # Specify the Go version you need
 
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('append-last-trading-day/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('EtL/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
       - name: Install dependencies
-        run: cd append-last-trading-day && go mod download
+        run: cd EtL && go mod download
 
       - name: Run main.go
         run: |
-          cd append-last-trading-day
-          CGO_ENABLED=1 go run main.go
+          cd EtL
+          CGO_ENABLED=1 go run main.go eod daily
         env:
           TIINGO_TOKEN: ${{ secrets.TIINGO_TOKEN }}
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
