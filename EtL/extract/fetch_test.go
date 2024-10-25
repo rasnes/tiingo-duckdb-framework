@@ -24,9 +24,11 @@ func teardown() {
 func getTestConfig() *config.Config {
 	return &config.Config{
 		Tiingo: config.TiingoConfig{
-			Format:    "csv",
-			StartDate: "2020-01-01",
-			Columns:   "open,close",
+			Eod: config.TiingoAPIConfig{
+				Format:    "csv",
+				StartDate: "2020-01-01",
+				Columns:   "open,close",
+			},
 		},
 		Extract: config.ExtractConfig{
 			Backoff: config.BackoffConfig{
@@ -53,9 +55,9 @@ func TestNewClient(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
 	assert.Equal(t, "test_token", client.tiingoToken)
-	assert.Equal(t, cfg.Tiingo.Format, client.TiingoFormat)
-	assert.Equal(t, cfg.Tiingo.StartDate, client.TiingoStartDate)
-	assert.Equal(t, cfg.Tiingo.Columns, client.TiingoColumns)
+	assert.Equal(t, cfg.Tiingo.Eod.Format, client.TiingoFormat)
+	assert.Equal(t, cfg.Tiingo.Eod.StartDate, client.TiingoStartDate)
+	assert.Equal(t, cfg.Tiingo.Eod.Columns, client.TiingoColumns)
 }
 
 func TestNewClient_NoToken(t *testing.T) {

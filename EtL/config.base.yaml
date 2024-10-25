@@ -15,7 +15,13 @@ duckdb:
     - "../sql/view__selected_last_trading_day.sql"
 
 tiingo:
-  format: csv
-  start_date: "1995-01-01"
-  columns: "date,close,adjClose,adjVolume"
+  eod:
+    format: csv
+    start_date: "1995-01-01"
+    columns: "date,close,adjClose,adjVolume"
+  fundamentals:
+    daily:
+      format: csv
+      start_date: "1995-01-01"
+      columns: "date,close,adjClose,adjVolume"
 

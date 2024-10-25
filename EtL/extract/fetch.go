@@ -29,9 +29,9 @@ func NewClient(config *config.Config, logger *slog.Logger) (*Client, error) {
 	client := &Client{
 		HTTPClient:      retryablehttp.NewClient(),
 		Logger:          logger,
-		TiingoFormat:    config.Tiingo.Format,
-		TiingoStartDate: config.Tiingo.StartDate,
-		TiingoColumns:   config.Tiingo.Columns,
+		TiingoFormat:    config.Tiingo.Eod.Format,
+		TiingoStartDate: config.Tiingo.Eod.StartDate,
+		TiingoColumns:   config.Tiingo.Eod.Columns,
 		tiingoToken:     tiingoToken,
 	}
 
