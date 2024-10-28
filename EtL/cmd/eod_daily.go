@@ -17,7 +17,7 @@ func newDailyCmd() *cobra.Command {
 				return err
 			}
 
-			nTickers, err := pipeline.EndOfDay(cfg, log)
+			nTickers, err := pipeline.DailyEndOfDay(cfg, log)
 			if err != nil {
 				if nTickers > 0 {
 					log.Error(fmt.Sprintf("Error running pipeline: %v. Backfilled %d tickers", err, nTickers))

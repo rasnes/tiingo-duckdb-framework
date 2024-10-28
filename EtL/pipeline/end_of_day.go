@@ -9,14 +9,14 @@ import (
 	"log/slog"
 )
 
-func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
+func DailyEndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 	db, err := load.NewDuckDB(config, logger)
 	if err != nil {
 		return 0, fmt.Errorf("error creating DB database: %v", err)
 	}
 	defer db.Close()
 
-	httpClient, err := extract.NewClient(config, logger)
+	httpClient, err := extract.NewTiingoClient(config, logger)
 	if err != nil {
 		return 0, fmt.Errorf("error creating HTTP client: %v", err)
 	}
@@ -25,6 +25,7 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error getting supported_tickers.csv.zip: %v", err)
 	}
+
 	csvSupportedTickers, err := extract.UnzipSingleCSV(zipSupportedTickers)
 	if err != nil {
 		return 0, fmt.Errorf("error unzipping supported_tickers.csv.zip: %v", err)
@@ -60,7 +61,7 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 		return 0, nil
 	}
 
-	nTickers, err := BackfillTickers(tickers, httpClient, logger, db)
+	nTickers, err := BackfillEndOfDay(tickers, httpClient, logger, db)
 	if err != nil {
 		return nTickers, fmt.Errorf("error backfilling tickers: %v", err)
 	}
@@ -68,10 +69,21 @@ func EndOfDay(config *config.Config, logger *slog.Logger) (int, error) {
 	return len(tickers), nil
 }
 
-func BackfillTickers(tickers []string, httpClient *extract.Client, logger *slog.Logger, db *load.DuckDB) (int, error) {
+// historyFetcher defines the interface for fetching historical data.
+type historyFetcher interface {
+	GetHistory(ticker string) ([]byte, error)
+}
+
+// csvLoader defines the interface for loading CSV data.
+type csvLoader interface {
+	LoadCSV(csv []byte, table string, insert bool) error
+}
+
+// BackfillEndOfDay fetches historical EoD prices for a list of tickers and loads them into the database
+func BackfillEndOfDay(tickers []string, client historyFetcher, logger *slog.Logger, db csvLoader) (int, error) {
 	var errorList []error
 	for i, ticker := range tickers {
-		history, err := httpClient.GetHistory(ticker)
+		history, err := client.GetHistory(ticker)
 		if err != nil {
 			errorList = append(errorList, fmt.Errorf("error fetching history for ticker %s: %w", ticker, err))
 			continue

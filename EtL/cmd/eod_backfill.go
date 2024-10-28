@@ -27,13 +27,13 @@ func newBackfillCmd() *cobra.Command {
 			}
 			defer db.Close()
 
-			httpClient, err := extract.NewClient(cfg, log)
+			httpClient, err := extract.NewTiingoClient(cfg, log)
 			if err != nil {
 				return fmt.Errorf("error creating HTTP client: %w", err)
 			}
 
 			tickers := strings.Split(args[0], ",") // Assuming comma-separated tickers
-			nSuccess, err := pipeline.BackfillTickers(tickers, httpClient, log, db)
+			nSuccess, err := pipeline.BackfillEndOfDay(tickers, httpClient, log, db)
 			if err != nil {
 				return fmt.Errorf("error backfilling tickers: %w", err)
 			}

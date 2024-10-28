@@ -132,7 +132,6 @@ func (db *DuckDB) LoadCSV(csv []byte, table string, insert bool) error {
 		return fmt.Errorf("failed to close temporary file: %w", err)
 	}
 
-	// TODO: add support for also using the INSERT OR REPLACE INTO statement
 	// Use the COPY statement to read the data from the temporary file into DuckDB
 	var query string
 	if insert {

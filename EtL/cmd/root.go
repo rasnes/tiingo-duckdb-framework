@@ -44,7 +44,30 @@ func initializeConfigAndLogger() (*config.Config, *slog.Logger, error) {
 		}
 	}
 
-	cfg, err := config.NewConfig()
+	// 1. Open the base configuration file
+	baseConfigFile, err := os.Open("config.base.yaml") // Update with your base config file path
+	if err != nil {
+		log.Error(fmt.Sprintf("Error opening base config file: %v", err))
+		return nil, nil, err
+	}
+	defer baseConfigFile.Close()
+
+	// 2. Prepare environment-specific config reader (if needed)
+	env := os.Getenv("APP_ENV")
+	var envConfigFile *os.File
+	envConfigFilename := fmt.Sprintf("config.%s.yaml", env)
+	if _, err := os.Stat(envConfigFilename); err == nil {
+		// Environment-specific config file exists
+		envConfigFile, err = os.Open(envConfigFilename)
+		if err != nil {
+			log.Error(fmt.Sprintf("Error opening environment config file: %v", err))
+			return nil, nil, err
+		}
+		defer envConfigFile.Close()
+	}
+
+	// 3. Create the config
+	cfg, err := config.NewConfig(baseConfigFile, envConfigFile, env)
 	if err != nil {
 		log.Error(fmt.Sprintf("Error reading config: %v", err))
 		return nil, nil, err

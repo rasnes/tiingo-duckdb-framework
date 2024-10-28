@@ -9,33 +9,10 @@ I prefer to load and transform data with the ELT (Extract, Load, Transform) fram
 
 ## TODO
 
-- Make `main.go` into a CLI tool, which should make it easy to do backfills per Ticker, for example.
-- Make it simple to, from the CLI tool, to run EndOfDay and BackfillTickers (and design so that any new functions are easy to add). Code used for backfilling TSLA are shown below.
-
-```go
-db, err := load.NewDuckDB(config, logger)
-if err != nil {
-  logger.Error(fmt.Sprintf("Error creating DB database: %v", err))
-}
-defer db.Close()
-
-httpClient, err := extract.NewClient(config, logger)
-if err != nil {
-  logger.Error(fmt.Sprintf("Error creating HTTP client: %v", err))
-}
-
-n_success, err := pipeline.BackfillTickers([]string{"TSLA"}, httpClient, logger, db)
-if err != nil {
-  logger.Error(fmt.Sprintf("Error backfilling tickers: %v", err))
-}
-logger.Info(fmt.Sprintf("Backfilled %d tickers", n_success))
-```
-
 - Create Taskfile
   - For running linter, tests etc. on `main` PRs
 - Add docstrings to all functions and methods
   - Remove redundant explanatory strings by GhatGPT
-- Add unit test to daily_end_of_day.BackfillTickers
 
 
 ### Maybe

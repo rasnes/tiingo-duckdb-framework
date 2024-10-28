@@ -13,9 +13,23 @@ duckdb:
     - "../sql/table__supported_tickers.sql"
     - "../sql/view__selected_us_tickers.sql"
     - "../sql/view__selected_last_trading_day.sql"
+    - "../sql/schema__fundamentals.sql"
 
 tiingo:
-  format: csv
-  start_date: "1995-01-01"
-  columns: "date,close,adjClose,adjVolume"
+  eod:
+    format: csv
+    start_date: "1995-01-01"
+    columns: "date,close,adjClose,adjVolume"
+  fundamentals:
+    daily:
+      format: csv
+      start_date: "1995-01-01"
+      columns: "date,close,adjClose,adjVolume"
+    meta:
+      format: csv
+      columns: >-
+        permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,
+        sicSector,sicIndustry,reportingCurrency,location,companyWebsite,
+        secFilingWebsite,statementLastUpdated,dailyLastUpdated
+
 

@@ -24,9 +24,11 @@ func teardown() {
 func getTestConfig() *config.Config {
 	return &config.Config{
 		Tiingo: config.TiingoConfig{
-			Format:    "csv",
-			StartDate: "2020-01-01",
-			Columns:   "open,close",
+			Eod: config.TiingoAPIConfig{
+				Format:    "csv",
+				StartDate: "2020-01-01",
+				Columns:   "open,close",
+			},
 		},
 		Extract: config.ExtractConfig{
 			Backoff: config.BackoffConfig{
@@ -49,13 +51,13 @@ func TestNewClient(t *testing.T) {
 	logger := getTestLogger(&bytes.Buffer{})
 	cfg := getTestConfig()
 
-	client, err := NewClient(cfg, logger)
+	client, err := NewTiingoClient(cfg, logger)
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
 	assert.Equal(t, "test_token", client.tiingoToken)
-	assert.Equal(t, cfg.Tiingo.Format, client.TiingoFormat)
-	assert.Equal(t, cfg.Tiingo.StartDate, client.TiingoStartDate)
-	assert.Equal(t, cfg.Tiingo.Columns, client.TiingoColumns)
+	assert.Equal(t, cfg.Tiingo.Eod.Format, client.TiingoConfig.Eod.Format)
+	assert.Equal(t, cfg.Tiingo.Eod.StartDate, client.TiingoConfig.Eod.StartDate)
+	assert.Equal(t, cfg.Tiingo.Eod.Columns, client.TiingoConfig.Eod.Columns)
 }
 
 func TestNewClient_NoToken(t *testing.T) {
@@ -63,7 +65,7 @@ func TestNewClient_NoToken(t *testing.T) {
 	cfg := getTestConfig()
 
 	os.Unsetenv("TIINGO_TOKEN")
-	client, err := NewClient(cfg, logger)
+	client, err := NewTiingoClient(cfg, logger)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 }
@@ -75,7 +77,7 @@ func TestClient_FetchData(t *testing.T) {
 	logger := getTestLogger(&bytes.Buffer{})
 	cfg := getTestConfig()
 
-	client, err := NewClient(cfg, logger)
+	client, err := NewTiingoClient(cfg, logger)
 	assert.NoError(t, err)
 
 	// Mock HTTP server
@@ -100,19 +102,19 @@ func TestClient_addTiingoConfigToURL(t *testing.T) {
 	logger := getTestLogger(&bytes.Buffer{})
 	cfg := getTestConfig()
 
-	client, err := NewClient(cfg, logger)
+	client, err := NewTiingoClient(cfg, logger)
 	assert.NoError(t, err)
 
 	rawURL := "https://api.tiingo.com/tiingo/daily/prices"
 	expectedURL := "https://api.tiingo.com/tiingo/daily/prices?columns=open%2Cclose&format=csv&startDate=2020-01-01&token=test_token"
 
-	resultURL, err := client.addTiingoConfigToURL(rawURL, true)
+	resultURL, err := client.addTiingoConfigToURL(client.TiingoConfig.Eod, rawURL, true)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedURL, resultURL)
 
 	// Test without history
-	expectedURLWithoutHistory := "https://api.tiingo.com/tiingo/daily/prices?format=csv&token=test_token"
-	resultURL, err = client.addTiingoConfigToURL(rawURL, false)
+	expectedURLWithoutHistory := "https://api.tiingo.com/tiingo/daily/prices?columns=open%2Cclose&format=csv&token=test_token"
+	resultURL, err = client.addTiingoConfigToURL(client.TiingoConfig.Eod, rawURL, false)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedURLWithoutHistory, resultURL)
 }

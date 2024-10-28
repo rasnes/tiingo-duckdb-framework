@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
+	"io"
 	"log"
-	"os"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -32,35 +33,50 @@ type DuckDBConfig struct {
 }
 
 type TiingoConfig struct {
+	Eod          TiingoAPIConfig    `mapstructure:"eod"`
+	Fundamentals FundamentalsConfig `mapstructure:"fundamentals"`
+}
+
+type FundamentalsConfig struct {
+	Daily      TiingoAPIConfig `mapstructure:"daily"`
+	Statements TiingoAPIConfig `mapstructure:"statements"`
+	Meta       TiingoAPIConfig `mapstructure:"meta"`
+}
+
+type TiingoAPIConfig struct {
 	Format    string `mapstructure:"format"`
 	StartDate string `mapstructure:"start_date"`
 	Columns   string `mapstructure:"columns"`
 }
 
-func NewConfig() (*Config, error) {
-	env := os.Getenv("APP_ENV")
-	if env == "" {
-		env = "dev"
+// NewConfig loads the configuration from the provided base config reader
+// and merges it with the environment-specific configuration.
+func NewConfig(baseConfigReader io.Reader, envConfigReader io.Reader, env string) (*Config, error) {
+	if env == "" { // Use the provided 'env' or default to "dev"
+			env = "dev"
 	}
 
-	viper.SetConfigName("config.base")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
 
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("error reading config file, %s", err)
+	// Read the base configuration
+	if err := viper.ReadConfig(baseConfigReader); err != nil {
+			return nil, fmt.Errorf("error reading base config: %w", err)
 	}
 
-	// Load the environment-specific configuration
-	viper.SetConfigName(fmt.Sprintf("config.%s", env))
-	if err := viper.MergeInConfig(); err != nil {
-		log.Fatalf("error reading %s config file, %s", env, err)
+	// Merge with environment-specific configuration (only if provided)
+	if envConfigReader != nil {
+			if err := viper.MergeConfig(envConfigReader); err != nil {
+					log.Printf("Error merging environment-specific config: %s", err)
+					// Handle the error as needed (log, return error, etc.)
+			}
 	}
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("unable to decode into struct, %v", err)
+			return nil, fmt.Errorf("unable to decode into struct: %w", err)
 	}
+
+	// Set the environment directly
 	config.Env = env
 
 	return &config, nil
