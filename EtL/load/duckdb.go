@@ -189,14 +189,25 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 }
 
 func createTmpFile(csv []byte) (*os.File, error) {
-	// Debug: Print first few lines of CSV
+	// Validate CSV content
+	if len(csv) == 0 {
+		return nil, fmt.Errorf("received empty CSV data")
+	}
+
+	// Check for "None%" response which indicates no data available
+	if string(csv) == "None%" {
+		return nil, fmt.Errorf("received 'None%%' response from API, indicating no data available")
+	}
+
+	// Debug: Print CSV details
 	lines := bytes.Split(csv, []byte("\n"))
 	numLines := len(lines)
 	if numLines > 0 {
 		slog.Info("CSV Debug",
 			"first_line", string(lines[0]),
 			"num_lines", numLines,
-			"total_bytes", len(csv))
+			"total_bytes", len(csv),
+			"content_preview", string(bytes.TrimSpace(csv[:min(100, len(csv))])))
 	}
 
 	// Create a temporary file
@@ -225,6 +236,13 @@ func (db *DuckDB) RunQuery(query string) error {
 		return fmt.Errorf("failed to execute query: %w", err)
 	}
 	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (db *DuckDB) RunQueryFile(path string) error {
