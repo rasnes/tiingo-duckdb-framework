@@ -87,7 +87,8 @@ func (c *TiingoClient) GetStatements(ticker string) ([]byte, error) {
 }
 
 // GetMeta fetches the meta information for a ticker.
-// `tickers` is a comma separated list of tickers, e.g. "AAPL,GOOGL"\
+// `tickers` is a comma separated list of tickers, e.g. "AAPL,GOOGL"
+// If `tickers` is zero value, it fetches the meta information for all tickers.
 // https://www.tiingo.com/documentation/fundamentals section 2.6.5
 func (c *TiingoClient) GetMeta(tickers string) ([]byte, error) {
 	metaURL := "https://api.tiingo.com/tiingo/fundamentals/meta"

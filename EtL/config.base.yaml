@@ -8,12 +8,13 @@ duckdb:
   append_table: daily_adjusted
   conn_init_fn_queries:
     # - "../sql/db__stage.sql"
+    - "../sql/schemas.sql"
     - "../sql/table__last_trading_day.sql"
     - "../sql/table__daily_adjusted.sql"
     - "../sql/table__supported_tickers.sql"
+    - "../sql/table__fundamentals_meta.sql"
     - "../sql/view__selected_us_tickers.sql"
     - "../sql/view__selected_last_trading_day.sql"
-    - "../sql/schema__fundamentals.sql"
 
 tiingo:
   eod:

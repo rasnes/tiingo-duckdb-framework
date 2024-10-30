@@ -1,5 +1,5 @@
 create table if not exists fundamentals.meta (
-  permaTicker VARCHAR,
+  permaTicker VARCHAR primary key,
   ticker VARCHAR,
   name VARCHAR,
   isActive BOOLEAN,
@@ -14,5 +14,5 @@ create table if not exists fundamentals.meta (
   companyWebsite VARCHAR,
   secFilingWebsite VARCHAR,
   statementLastUpdated DATE,
-  dailyLastUpdated DATE
+  dailyLastUpdated DATE,
 );

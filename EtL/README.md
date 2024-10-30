@@ -9,6 +9,7 @@ I prefer to load and transform data with the ELT (Extract, Load, Transform) fram
 
 ## TODO
 
+- Fix failed tests.
 - Create Taskfile
   - For running linter, tests etc. on `main` PRs
 - Add docstrings to all functions and methods

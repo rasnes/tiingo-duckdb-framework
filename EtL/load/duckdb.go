@@ -1,17 +1,21 @@
 package load
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"github.com/marcboeker/go-duckdb"
-	_ "github.com/marcboeker/go-duckdb"
-	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
+	"text/template"
+
+	"github.com/marcboeker/go-duckdb"
+	_ "github.com/marcboeker/go-duckdb"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
 )
 
 type DuckDB struct {
@@ -113,26 +117,61 @@ func (db *DuckDB) Close() {
 	db.Connector.Close()
 }
 
-func (db *DuckDB) LoadCSV(csv []byte, table string, insert bool) error {
+// LoadCSVWithQuery loads CSV data using a templated SQL query.
+// The query template should use {{.CsvFile}} where the temporary CSV filename should be inserted.
+func (db *DuckDB) LoadCSVWithQuery(csv []byte, queryTemplate string, params map[string]any) (sql.Result, error) {
 	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "tmp.csv")
+	tmpFile, err := createTmpFile(csv)
 	if err != nil {
-		return fmt.Errorf("failed to create temporary file: %w", err)
+		return nil, err
 	}
 	defer os.Remove(tmpFile.Name())
 
-	// Write the CSV data to the temporary file
-	if _, err := tmpFile.Write(csv); err != nil {
-		tmpFile.Close()
-		return fmt.Errorf("failed to write to temporary file: %w", err)
+	// Add the temporary file path to the template parameters
+	if params == nil {
+		params = make(map[string]any)
+	}
+	params["CsvFile"] = tmpFile.Name()
+
+	// Parse and execute the template
+	tmpl, err := template.New("sql").Parse(queryTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query template: %w", err)
 	}
 
-	// Close the file to flush the data
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("failed to close temporary file: %w", err)
+	var queryBuffer bytes.Buffer
+	if err := tmpl.Execute(&queryBuffer, params); err != nil {
+		return nil, fmt.Errorf("failed to execute query template: %w", err)
 	}
 
-	// Use the COPY statement to read the data from the temporary file into DuckDB
+	res, err := db.DB.ExecContext(context.Background(), queryBuffer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	return res, nil
+}
+
+// LoadCSV loads CSV data into a table in DuckDB
+// If insert is true, 'insert or replace' semantics are used,
+// else the 'copy' command is used to load the data (which truncates the table).
+func (db *DuckDB) LoadCSV(csv []byte, table string, insert bool) error {
+	// Create a temporary file
+	tmpFile, err := createTmpFile(csv)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if err := db.LoadTmpFile(tmpFile, table, insert); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error {
+	// Use the COPY statement or INSERT OR REPLACE to read the data from the temporary file into DuckDB
 	var query string
 	if insert {
 		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s');", table, tmpFile.Name())
@@ -144,6 +183,27 @@ func (db *DuckDB) LoadCSV(csv []byte, table string, insert bool) error {
 	}
 
 	return nil
+}
+
+func createTmpFile(csv []byte) (*os.File, error) {
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", constants.TmpCSVFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary file: %w", err)
+	}
+
+	// Write the CSV data to the temporary file
+	if _, err := tmpFile.Write(csv); err != nil {
+		tmpFile.Close()
+		return nil, fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+
+	// Close the file to flush the data
+	if err := tmpFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close temporary file: %w", err)
+	}
+
+	return tmpFile, nil
 }
 
 func (db *DuckDB) RunQuery(query string) error {

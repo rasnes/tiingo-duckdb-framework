@@ -26,6 +26,7 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(endOfDayCmd)
+	rootCmd.AddCommand(fundamentalsCmd)
 	endOfDayCmd.AddCommand(newDailyCmd())
 	endOfDayCmd.AddCommand(newBackfillCmd())
 }
