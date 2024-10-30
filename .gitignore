@@ -45,3 +45,7 @@ venv.bak/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Build tools
+.aider*
+.sesskey
