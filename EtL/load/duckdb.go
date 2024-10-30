@@ -174,10 +174,13 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 	// Use the COPY statement or INSERT OR REPLACE to read the data from the temporary file into DuckDB
 	var query string
 	if insert {
-		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s');", table, tmpFile.Name())
+		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s', delim=',', quote='\"', escape='\"', header=true, dateformat='%Y-%m-%d', all_varchar=1, ignore_errors=true, null_padding=true);", table, tmpFile.Name())
 	} else {
-		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, HEADER);", table, tmpFile.Name())
+		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER, NULL_PADDING, IGNORE_ERRORS, ALL_VARCHAR 1);", table, tmpFile.Name())
 	}
+
+	db.Logger.Debug("Executing DuckDB query", "query", query)
+
 	if _, err := db.DB.ExecContext(context.Background(), query); err != nil {
 		return fmt.Errorf("failed to execute COPY or INSERT OR REPLACE INTO statement: %w", err)
 	}
