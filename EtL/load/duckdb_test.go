@@ -1,6 +1,7 @@
 package load
 
 import (
+	"bytes"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/stretchr/testify/assert"
 	"log/slog"
@@ -31,6 +32,26 @@ func TestNewDuckDB(t *testing.T) {
 	assert.NotNil(t, db.DB)
 }
 
+func TestCreateTmpFileLogging(t *testing.T) {
+	// Create a buffer to capture log output
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+	slog.SetDefault(logger)
+
+	// Test CSV data
+	csvData := []byte("header1,header2\nvalue1,value2\nvalue3,value4")
+	tmpFile, err := createTmpFile(csvData)
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	// Check log output
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "header1,header2")
+	assert.Contains(t, logOutput, "num_lines")
+	assert.Contains(t, logOutput, "total_bytes")
+	assert.Contains(t, logOutput, "content_preview")
+}
+
 func TestLoadCSVWithQuery(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -57,6 +78,26 @@ func TestLoadCSVWithQuery(t *testing.T) {
 		"id":   {"1", "2"},
 		"name": {"Alice", "Bob"},
 	}, results)
+}
+
+func TestLoadCSVWithEmptyData(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Test with empty CSV data
+	err := db.LoadCSV([]byte{}, "test", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "received empty CSV data")
+}
+
+func TestLoadCSVWithNoneResponse(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Test with "None%" response
+	err := db.LoadCSV([]byte("None%"), "test", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "received 'None%' response from API")
 }
 
 func TestLoadCSV(t *testing.T) {
