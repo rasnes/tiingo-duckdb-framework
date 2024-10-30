@@ -16,51 +16,6 @@ type ClientInterface interface {
 	GetMeta(tickers string) ([]byte, error)
 }
 
-func UpdateMetadata(db DBInterface, client ClientInterface, logger *slog.Logger) (int, error) {
-	templateContent := `
-with relevant_metadata as (
-  select *
-  from read_csv('{{.CsvFile}}')
-)
-insert or replace into fundamentals.meta
-(
-  permaTicker,
-  ticker,
-  name,
-  isActive,
-  isADR,
-  sector,
-  industry,
-  sicCode,
-  sicSector,
-  sicIndustry,
-  reportingCurrency,
-  location,
-  companyWebsite,
-  secFilingWebsite,
-  statementLastUpdated,
-  dailyLastUpdated
-)
-select
-  permaTicker,
-  ticker,
-  name,
-  isActive,
-  isADR,
-  sector,
-  industry,
-  sicCode,
-  sicSector,
-  sicIndustry,
-  reportingCurrency,
-  location,
-  companyWebsite,
-  secFilingWebsite,
-  statementLastUpdated,
-  dailyLastUpdated
-from relevant_metadata;`
-	return UpdateMetadataWithTemplate(db, client, logger, templateContent)
-}
 
 func UpdateMetadataWithTemplate(db DBInterface, client ClientInterface, logger *slog.Logger, templateContent string) (int, error) {
 	// Get metadata from Tiingo API
