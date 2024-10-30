@@ -186,6 +186,16 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 }
 
 func createTmpFile(csv []byte) (*os.File, error) {
+	// Debug: Print first few lines of CSV
+	lines := bytes.Split(csv, []byte("\n"))
+	numLines := len(lines)
+	if numLines > 0 {
+		slog.Info("CSV Debug", 
+			"first_line", string(lines[0]),
+			"num_lines", numLines,
+			"total_bytes", len(csv))
+	}
+
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", constants.TmpCSVFile)
 	if err != nil {
