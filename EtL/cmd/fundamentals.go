@@ -34,24 +34,10 @@ func newMetadataCmd() *cobra.Command {
 				return fmt.Errorf("error creating HTTP client: %w", err)
 			}
 
-			// Get metadata from Tiingo API
-			metadata, err := client.GetMeta("")
+			rowsAffected, err := pipeline.UpdateMetadata(db, client, log)
 			if err != nil {
-				return fmt.Errorf("error fetching metadata from Tiingo: %w", err)
+				return fmt.Errorf("error updating metadata: %w", err)
 			}
-
-			// Load metadata using SQL template
-			res, err := db.LoadCSVWithQuery(metadata, "../sql/insert__fundamentals_meta.sql", nil)
-			if err != nil {
-				return fmt.Errorf("error loading metadata: %w", err)
-			}
-
-			rowsAffected, err := res.RowsAffected()
-			if err != nil {
-				return fmt.Errorf("error getting rows affected: %w", err)
-			}
-
-			log.Info(fmt.Sprintf("Successfully updated metadata for %d tickers", rowsAffected))
 			return nil
 		},
 	}
