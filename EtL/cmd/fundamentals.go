@@ -5,6 +5,7 @@ import (
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/pipeline"
 	"github.com/spf13/cobra"
 )
 
