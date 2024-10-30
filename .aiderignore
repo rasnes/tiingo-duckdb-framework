@@ -1,0 +1,9 @@
+.git/
+
+# Temporary ignores
+
+## When working with EtL
+dashboard/
+fundamentals/
+init-db/
+transformations/

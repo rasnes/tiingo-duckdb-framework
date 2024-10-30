@@ -31,6 +31,34 @@ func TestNewDuckDB(t *testing.T) {
 	assert.NotNil(t, db.DB)
 }
 
+func TestLoadCSVWithQuery(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create a test table
+	createTableQuery := "CREATE TABLE test (id INTEGER, name STRING);"
+	err := db.RunQuery(createTableQuery)
+	assert.NoError(t, err)
+
+	// Test data
+	csvData := []byte("id,name\n1,Alice\n2,Bob")
+	queryTemplate := "COPY test FROM '{{.CsvFile}}' (FORMAT CSV, HEADER);"
+	params := map[string]any{}
+
+	// Execute the templated query
+	res, err := db.LoadCSVWithQuery(csvData, queryTemplate, params)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+
+	// Verify the data was loaded correctly
+	results, err := db.GetQueryResults("SELECT * FROM test ORDER BY id;")
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]string{
+		"id":   {"1", "2"},
+		"name": {"Alice", "Bob"},
+	}, results)
+}
+
 func TestLoadCSV(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
