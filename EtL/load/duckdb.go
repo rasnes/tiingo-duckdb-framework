@@ -199,17 +199,6 @@ func createTmpFile(csv []byte) (*os.File, error) {
 		return nil, fmt.Errorf("received 'None%%' response from API, indicating no data available")
 	}
 
-	// Debug: Print CSV details
-	lines := bytes.Split(csv, []byte("\n"))
-	numLines := len(lines)
-	if numLines > 0 {
-		slog.Info("CSV Debug",
-			"first_line", string(lines[0]),
-			"num_lines", numLines,
-			"total_bytes", len(csv),
-			"content_preview", string(bytes.TrimSpace(csv[:min(100, len(csv))])))
-	}
-
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", constants.TmpCSVFile)
 	if err != nil {
@@ -238,12 +227,6 @@ func (db *DuckDB) RunQuery(query string) error {
 	return nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
 
 func (db *DuckDB) RunQueryFile(path string) error {
 	query, err := readQuery(path)
