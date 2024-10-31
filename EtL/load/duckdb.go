@@ -176,7 +176,7 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 	if insert {
 		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s', delim=',', quote='\"', escape='\"', header=true);", table, tmpFile.Name())
 	} else {
-		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER, NULL_PADDING, IGNORE_ERRORS);", table, tmpFile.Name())
+		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER);", table, tmpFile.Name())
 	}
 
 	db.Logger.Debug("Executing DuckDB query", "query", query)

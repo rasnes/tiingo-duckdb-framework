@@ -46,6 +46,9 @@ func newMetadataCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("error updating metadata: %w", err)
 			}
+
+			log.Info(fmt.Sprintf("Successfully updated metadata for %d tickers", rowsAffected))
+
 			return nil
 		},
 	}
