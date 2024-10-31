@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
@@ -156,7 +158,17 @@ func (c *TiingoClient) addTiingoConfigToURL(apiConfig config.TiingoAPIConfig, ra
 		if apiConfig.StartDate == "" {
 			return "", fmt.Errorf("startDate is required for historical data")
 		}
-		query.Set("startDate", apiConfig.StartDate)
+		var startDate string
+		if strings.Contains(apiConfig.StartDate, "today") {
+			startDate, err = parseTodayString(apiConfig.StartDate)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse startDate: %w", err)
+			}
+		} else {
+			startDate = apiConfig.StartDate
+		}
+
+		query.Set("startDate", startDate)
 	}
 	parsedURL.RawQuery = query.Encode()
 
@@ -177,4 +189,41 @@ func (c *TiingoClient) get(url string) (body []byte, resp *http.Response, err er
 	}
 
 	return body, resp, nil
+}
+
+// parseTodayString converts a string in the format "today" or "today-<duration>" into an ISO 8601 date string.
+// The duration part supports any valid time.ParseDuration format (e.g., "24h", "7h30m", "1h30m10s").
+//
+// Examples:
+//   - "today" returns current date
+//   - "today-24h" returns yesterday's date
+//   - "today-168h" returns date from 7 days ago
+//   - "today-30m" returns today's date (as it's less than a day)
+//
+// Returns:
+//   - string: ISO 8601 formatted date (YYYY-MM-DD)
+//   - error: if the input format is invalid or duration parsing fails
+func parseTodayString(todayString string) (string, error) {
+	// Handle the "today" case
+	if todayString == "today" {
+		return time.Now().Format("2006-01-02"), nil
+	}
+
+	// Split the string by "-"
+	parts := strings.Split(todayString, "-")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid today string format: %s", todayString)
+	}
+
+	if parts[0] != "today" {
+		return "", fmt.Errorf("string must start with 'today': %s", todayString)
+	}
+
+	duration, err := time.ParseDuration(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("failed to parse duration: %w", err)
+	}
+
+	today := time.Now().Add(-duration)
+	return today.Format("2006-01-02"), nil
 }

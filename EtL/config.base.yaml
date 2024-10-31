@@ -24,8 +24,8 @@ tiingo:
   fundamentals:
     daily:
       format: csv
-      start_date: "1995-01-01"
-      columns: "date,close,adjClose,adjVolume"
+      start_date: "today-7d"
+      columns: "date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y"
     meta:
       format: csv
       columns: >-
