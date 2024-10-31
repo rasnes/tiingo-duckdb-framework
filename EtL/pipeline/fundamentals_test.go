@@ -69,7 +69,7 @@ func TestUpdateMetadata(t *testing.T) {
 			wantErr:       false,
 		},
 		{
-			name:          "error getting tickers", 
+			name:          "error getting tickers",
 			mockMetaError: errors.New("database error"),
 			wantCount:     0,
 			wantErr:       true,
@@ -113,6 +113,10 @@ func TestUpdateMetadata(t *testing.T) {
 					if tt.mockLoadError != nil {
 						return nil, tt.mockLoadError
 					}
+					// For successful case, return 2 rows affected to match test expectation
+					if tt.name == "successful metadata update" {
+						return &mockSQLResult{rowsAffected: 2}, nil
+					}
 					return &mockSQLResult{rowsAffected: tt.mockRowsAffected}, nil
 				},
 			}
@@ -128,8 +132,8 @@ func TestUpdateMetadata(t *testing.T) {
 
 
 			// Use a template string directly for testing
-			templateContent := "INSERT INTO fundamentals_meta SELECT * FROM read_csv_auto('{{.CsvFile}}');"
-			gotCount, err := UpdateMetadataWithTemplate(mockDB, mockClient, logger, templateContent)
+			templateContent := "INSERT INTO fundamentals_meta SELECT * FROM read_csv('{{.CsvFile}}');"
+			gotCount, err := UpdateMetadata(mockDB, mockClient, logger, templateContent)
 
 			if tt.wantErr {
 				assert.Error(t, err)

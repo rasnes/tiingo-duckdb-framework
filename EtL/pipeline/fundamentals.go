@@ -16,7 +16,7 @@ type ClientInterface interface {
 	GetMeta(tickers string) ([]byte, error)
 }
 
-func UpdateMetadataWithTemplate(db DBInterface, client ClientInterface, logger *slog.Logger, templateContent string) (int, error) {
+func UpdateMetadata(db DBInterface, client ClientInterface, logger *slog.Logger, templateContent string) (int, error) {
 	// Get metadata from Tiingo API
 	metadata, err := client.GetMeta("")
 	if err != nil {

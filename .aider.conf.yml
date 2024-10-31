@@ -108,7 +108,7 @@ edit-format: diff
 #max-chat-history-tokens: xxx
 
 ## Specify the .env file to load (default: .env in git root)
-#env-file: .env
+env-file: .env
 
 #################
 # Cache Settings:
@@ -207,10 +207,11 @@ gitignore: true
 aiderignore: .aiderignore
 
 ## Only consider files in the current subtree of the git repository
+### NOTE: If you need to enable more than 1 dir/product in a monorepo, use .aiderignore instead
 subtree-only: false
 
 ## Enable/disable auto commit of LLM changes (default: True)
-auto-commits: true
+auto-commits: false
 
 ## Enable/disable commits when repo is found dirty (default: True)
 #dirty-commits: true
