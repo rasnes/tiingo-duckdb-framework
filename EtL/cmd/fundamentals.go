@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
@@ -35,12 +36,19 @@ func newMetadataCmd() *cobra.Command {
 				return fmt.Errorf("error creating HTTP client: %w", err)
 			}
 
-			nTickers, err := pipeline.UpdateMetadata(db, client, log)
+			// Read the SQL template file
+			sqlTemplate, err := os.ReadFile("../sql/insert__fundamentals_meta.sql")
 			if err != nil {
-				log.Error(fmt.Sprintf("Error updating metadata: %v", err))
-				return err
+				return fmt.Errorf("error reading SQL template file: %w", err)
 			}
-			log.Info(fmt.Sprintf("Successfully updated metadata for %d tickers", nTickers))
+
+			rowsAffected, err := pipeline.UpdateMetadataWithTemplate(db, client, log, string(sqlTemplate))
+			if err != nil {
+				return fmt.Errorf("error updating metadata: %w", err)
+			}
+
+			log.Info(fmt.Sprintf("Successfully updated metadata for %d tickers", rowsAffected))
+
 			return nil
 		},
 	}

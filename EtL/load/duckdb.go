@@ -174,10 +174,13 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 	// Use the COPY statement or INSERT OR REPLACE to read the data from the temporary file into DuckDB
 	var query string
 	if insert {
-		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s');", table, tmpFile.Name())
+		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s', delim=',', quote='\"', escape='\"', header=true);", table, tmpFile.Name())
 	} else {
-		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, HEADER);", table, tmpFile.Name())
+		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER);", table, tmpFile.Name())
 	}
+
+	db.Logger.Debug("Executing DuckDB query", "query", query)
+
 	if _, err := db.DB.ExecContext(context.Background(), query); err != nil {
 		return fmt.Errorf("failed to execute COPY or INSERT OR REPLACE INTO statement: %w", err)
 	}
@@ -186,6 +189,16 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 }
 
 func createTmpFile(csv []byte) (*os.File, error) {
+	// Validate CSV content
+	if len(csv) == 0 {
+		return nil, fmt.Errorf("received empty CSV data")
+	}
+
+	// Check for "None%" response which indicates no data available
+	if string(csv) == "None%" {
+		return nil, fmt.Errorf("received 'None%%' response from API, indicating no data available")
+	}
+
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", constants.TmpCSVFile)
 	if err != nil {
@@ -213,6 +226,7 @@ func (db *DuckDB) RunQuery(query string) error {
 	}
 	return nil
 }
+
 
 func (db *DuckDB) RunQueryFile(path string) error {
 	query, err := readQuery(path)
