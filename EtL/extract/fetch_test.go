@@ -95,6 +95,75 @@ func TestClient_FetchData(t *testing.T) {
 	assert.Equal(t, []byte("test content"), body)
 }
 
+func TestParseTodayString(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantError   bool
+		errorString string
+	}{
+		{
+			name:      "basic today",
+			input:     "today",
+			wantError: false,
+		},
+		{
+			name:      "yesterday",
+			input:     "today-24h",
+			wantError: false,
+		},
+		{
+			name:      "week ago",
+			input:     "today-168h",
+			wantError: false,
+		},
+		{
+			name:        "invalid format",
+			input:       "yesterday",
+			wantError:   true,
+			errorString: "invalid today string format: yesterday",
+		},
+		{
+			name:        "invalid prefix",
+			input:       "tomorrow-24h",
+			wantError:   true,
+			errorString: "string must start with 'today': tomorrow-24h",
+		},
+		{
+			name:        "invalid duration",
+			input:       "today-invalid",
+			wantError:   true,
+			errorString: "failed to parse duration:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseTodayString(tt.input)
+			
+			if tt.wantError {
+				assert.Error(t, err)
+				if tt.errorString != "" {
+					assert.Contains(t, err.Error(), tt.errorString)
+				}
+				return
+			}
+			
+			assert.NoError(t, err)
+			
+			// For successful cases, verify the date format
+			_, err = time.Parse("2006-01-02", result)
+			assert.NoError(t, err, "Result should be in YYYY-MM-DD format")
+			
+			// For "today" case, verify it matches today's date
+			if tt.input == "today" {
+				expected := time.Now().Format("2006-01-02")
+				assert.Equal(t, expected, result)
+			}
+		})
+	}
+}
+
 func TestClient_addTiingoConfigToURL(t *testing.T) {
 	setup()
 	defer teardown()

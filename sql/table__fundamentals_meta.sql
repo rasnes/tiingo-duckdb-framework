@@ -1,7 +1,6 @@
--- create table if not exists fundamentals.meta (
--- TODO: switch to `create table if not exists` semantics when
+-- TODO: recreate table when
 -- switching to paid subscription for fundamentals.
-create or replace table fundamentals.meta (
+create table if not exists fundamentals.meta (
   permaTicker VARCHAR primary key,
   ticker VARCHAR,
   name VARCHAR,

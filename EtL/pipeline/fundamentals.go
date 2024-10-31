@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"os"
+	//"os"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
@@ -59,23 +59,25 @@ func DailyFundamentals(db DBGetQueryResults, client ClientGetDailyFundamentals, 
 	// TODO: Need support for backfills. Maybre add a fifth parameter?
 	// TODO: Add docstring to this function
 
-	query := "select ticker from selected_fundamentals"
-	if os.Getenv("APP_ENV") != "prod" {
-		query += " limit 20"
-	}
+	// query := "select ticker from selected_fundamentals"
+	// if os.Getenv("APP_ENV") != "prod" {
+	// 	query += " limit 20"
+	// }
 
-	res, err := db.GetQueryResults(query)
-	if err != nil {
-		return 0, fmt.Errorf("error getting selected_fundamentals results: %w", err)
-	}
+	// res, err := db.GetQueryResults(query)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("error getting selected_fundamentals results: %w", err)
+	// }
 
-	tickers, ok := res["ticker"]
-	if !ok {
-		return 0, fmt.Errorf("ticker key not found in selected_fundamentals results")
-	}
-	if len(tickers) == 0 {
-		return 0, fmt.Errorf("no tickers found in selected_fundamentals results")
-	}
+	// tickers, ok := res["ticker"]
+	// if !ok {
+	// 	return 0, fmt.Errorf("ticker key not found in selected_fundamentals results")
+	// }
+	// if len(tickers) == 0 {
+	// 	return 0, fmt.Errorf("no tickers found in selected_fundamentals results")
+	// }
+
+	tickers := []string{"AAPL", "MSFT", "HD", "CAT"}
 
 	csvs := make([][]byte, 0)
 	for _, ticker := range tickers {

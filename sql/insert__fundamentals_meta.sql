@@ -1,9 +1,6 @@
 with relevant_metadata as (
   select *
   from read_csv('{{.CsvFile}}', delim=',', all_varchar=true)
-  -- TODO: figure out why this semi join is not working. It works inside Motherduck!
-  -- semi join selected_us_tickers
-  --  on upper(meta.ticker) = upper(selected_us_tickers.ticker)
 )
 insert or replace into fundamentals.meta
 (

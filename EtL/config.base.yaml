@@ -13,8 +13,10 @@ duckdb:
     - "../sql/table__daily_adjusted.sql"
     - "../sql/table__supported_tickers.sql"
     - "../sql/table__fundamentals_meta.sql"
+    - "../sql/table__fundamentals_daily.sql"
     - "../sql/view__selected_us_tickers.sql"
     - "../sql/view__selected_last_trading_day.sql"
+    - "../sql/view__selected_fundamentals.sql"
 
 tiingo:
   eod:
@@ -24,8 +26,8 @@ tiingo:
   fundamentals:
     daily:
       format: csv
-      start_date: "today-7d"
-      columns: "date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y"
+      start_date: "today-168h"
+      # columns: "date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y"
     meta:
       format: csv
       columns: >-

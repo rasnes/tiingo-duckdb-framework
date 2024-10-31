@@ -1,4 +1,5 @@
-create or replace table last_trading_day (
+-- TODO: double check that this ingest write truncates existing data.
+create table if not exists last_trading_day (
   ticker VARCHAR,
   date DATE,
   close DECIMAL,

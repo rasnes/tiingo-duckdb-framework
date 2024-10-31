@@ -258,10 +258,10 @@ auto-commits: false
 #auto-lint: true
 
 ## Specify command to run tests
-#test-cmd: xxx
+test-cmd: cd EtL && task test
 
 ## Enable/disable automatic testing after changes (default: False)
-#auto-test: false
+auto-test: true
 
 ## Run tests and fix problems found
 #test: false
