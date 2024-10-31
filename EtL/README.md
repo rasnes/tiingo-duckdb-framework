@@ -10,6 +10,7 @@ I prefer to load and transform data with the ELT (Extract, Load, Transform) fram
 ## TODO
 
 - Fix failed tests.
+- Fix double logging for `go run main.go fundamentals metadata`
 - Create Taskfile
   - For running linter, tests etc. on `main` PRs
 - Add docstrings to all functions and methods
