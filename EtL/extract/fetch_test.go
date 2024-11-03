@@ -25,16 +25,42 @@ func setupTestServer() *httptest.Server {
 		switch r.URL.Path {
 		case "/tiingo/fundamentals/AAPL/statements":
 			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("date,totalAssets,totalLiabilities\n2024-01-01,1000000,500000"))
-		case "/tiingo/fundamentals/INVALID/statements":
+			w.Write([]byte("date,year,quarter,statementType,dataCode,value\n" +
+				"2024-03-30,2024,2,balanceSheet,acctRec,41150000000.0\n" +
+				"2024-03-30,2024,2,balanceSheet,debt,104590000000.0\n" +
+				"2023-12-31,2023,4,incomeStatement,opex,14371000000.0\n" +
+				"2023-09-30,2023,3,cashFlow,issrepayDebt,-3148000000.0"))
+		case "/tiingo/fundamentals/ERROR/statements":
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not found"))
+		case "/tiingo/fundamentals/ERROR/daily":
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Unauthorized"))
+		case "/tiingo/fundamentals/ERROR/meta":
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Server error"))
 		case "/tiingo/fundamentals/meta":
 			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("permaTicker,ticker,name\nAAPL,AAPL,Apple Inc\nGOOGL,GOOGL,Alphabet Inc"))
+			// Full response when no columns specified
+			if r.URL.Query().Get("columns") == "" {
+				w.Write([]byte("permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,sicSector,sicIndustry,reportingCurrency,location,companyWebsite,secFilingWebsite,statementLastUpdated,dailyLastUpdated\n" +
+					"AAPL123,AAPL,Apple Inc,True,False,Tech,Electronics,1234,Mfg,Computers,USD,US,apple.com,sec.gov,2024-01-01,2024-01-01\n" +
+					"MSFT456,MSFT,Microsoft,True,False,Tech,Software,5678,Svc,Software,USD,US,msft.com,sec.gov,2024-01-01,2024-01-01"))
+			} else {
+				// Response when specific columns are requested
+				w.Write([]byte("permaTicker,ticker,name\n" +
+					"US000000000038,aapl,Apple Inc\n" +
+					"US000000000042,msft,Microsoft Corporation"))
+			}
 		case "/tiingo/fundamentals/AAPL/daily":
 			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("date,marketCap,peRatio\n2024-01-01,3000000000,25.5"))
+			// Full response when no columns specified
+			if r.URL.Query().Get("columns") == "" {
+				w.Write([]byte("date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y\n2024-01-01,1000000000.0,1100000000.0,15.5,2.5,1.2"))
+			} else {
+				// Response when specific columns are requested
+				w.Write([]byte("date,marketCap,\n2024-01-01,1000000000.0"))
+			}
 		case "/tiingo/fundamentals/INVALID/daily":
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not found"))
@@ -237,10 +263,12 @@ func setupTestClient(t *testing.T, server *httptest.Server) *TiingoClient {
 		Tiingo: config.TiingoConfig{
 			Fundamentals: config.FundamentalsConfig{
 				Daily: config.TiingoAPIConfig{
-					Format: "csv",
+					Format:    "csv",
+					StartDate: "2020-01-01",
 				},
 				Statements: config.TiingoAPIConfig{
-					Format: "csv",
+					Format:    "csv",
+					StartDate: "2020-01-01",
 				},
 				Meta: config.TiingoAPIConfig{
 					Format: "csv",
@@ -270,25 +298,41 @@ func TestGetStatements(t *testing.T) {
 		ticker      string
 		wantErr     bool
 		errContains string
+		wantContent []string
 	}{
 		{
-			name:    "successful fetch statements",
-			ticker:  "AAPL", 
-			wantErr: true,
-			errContains: "startDate is required for historical data",
+			name:    "successful fetch statements - check fields",
+			ticker:  "AAPL",
+			wantErr: false,
+			wantContent: []string{
+				"date,year,quarter,statementType,dataCode,value",
+				"balanceSheet,acctRec,41150000000.0",
+				"balanceSheet,debt,104590000000.0",
+				"incomeStatement,opex,14371000000.0",
+			},
 		},
 		{
-			name:        "handles non-existent ticker", 
+			name:    "successful fetch statements - check dates",
+			ticker:  "AAPL",
+			wantErr: false,
+			wantContent: []string{
+				"2024-03-30,2024,2",
+				"2023-12-31,2023,4",
+				"2023-09-30,2023,3",
+			},
+		},
+		{
+			name:        "handles non-existent ticker",
 			ticker:      "INVALID",
 			wantErr:     true,
-			errContains: "startDate is required for historical data",
+			errContains: "status: 404",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := client.GetStatements(tt.ticker)
-
+			
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -296,9 +340,11 @@ func TestGetStatements(t *testing.T) {
 				}
 				return
 			}
-
+			
 			assert.NoError(t, err)
-			assert.Contains(t, string(data), "totalAssets")
+			for _, content := range tt.wantContent {
+				assert.Contains(t, string(data), content)
+			}
 		})
 	}
 }
@@ -323,8 +369,8 @@ func TestGetMeta(t *testing.T) {
 		},
 		{
 			name:        "fetch specific tickers",
-			tickers:     "AAPL,GOOGL",
-			wantContent: "Alphabet Inc",
+			tickers:     "AAPL,MSFT",
+			wantContent: "Microsoft",  // This matches our mock response
 			wantErr:     false,
 		},
 	}
@@ -355,18 +401,34 @@ func TestGetDailyFundamentals(t *testing.T) {
 		ticker      string
 		wantErr     bool
 		errContains string
+		wantContent []string
 	}{
 		{
-			name:    "successful fetch daily fundamentals",
+			name:    "successful fetch daily fundamentals - check fields",
 			ticker:  "AAPL",
-			wantErr: true,
-			errContains: "startDate is required for historical data",
+			wantErr: false,
+			wantContent: []string{
+				"date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y",
+				"1000000000.0",
+				"1100000000.0",
+				"15.5",
+				"2.5",
+				"1.2",
+			},
+		},
+		{
+			name:    "successful fetch daily fundamentals - check date format",
+			ticker:  "AAPL",
+			wantErr: false,
+			wantContent: []string{
+				"2024-01-01",
+			},
 		},
 		{
 			name:        "handles non-existent ticker",
-			ticker:      "INVALID", 
+			ticker:      "INVALID",
 			wantErr:     true,
-			errContains: "startDate is required for historical data",
+			errContains: "status: 404",
 		},
 	}
 
@@ -383,7 +445,9 @@ func TestGetDailyFundamentals(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			assert.Contains(t, string(data), "marketCap")
+			for _, content := range tt.wantContent {
+				assert.Contains(t, string(data), content)
+			}
 		})
 	}
 }
