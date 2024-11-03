@@ -187,3 +187,215 @@ func TestClient_addTiingoConfigToURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedURLWithoutHistory, resultURL)
 }
+package extract
+
+import (
+	"bytes"
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
+	"github.com/stretchr/testify/assert"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+)
+
+func setupTestServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify token is present
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/tiingo/fundamentals/AAPL/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			w.Write([]byte("date,totalAssets,totalLiabilities\n2024-01-01,1000000,500000"))
+		case "/tiingo/fundamentals/INVALID/statements":
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not found"))
+		case "/tiingo/fundamentals/meta":
+			w.Header().Set("Content-Type", "text/csv")
+			w.Write([]byte("permaTicker,ticker,name\nAAPL,AAPL,Apple Inc\nGOOGL,GOOGL,Alphabet Inc"))
+		case "/tiingo/fundamentals/AAPL/daily":
+			w.Header().Set("Content-Type", "text/csv")
+			w.Write([]byte("date,marketCap,peRatio\n2024-01-01,3000000000,25.5"))
+		case "/tiingo/fundamentals/INVALID/daily":
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not found"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not found"))
+		}
+	}))
+}
+
+func setupTestClient(t *testing.T, server *httptest.Server) *TiingoClient {
+	os.Setenv("TIINGO_TOKEN", "test-token")
+	defer os.Unsetenv("TIINGO_TOKEN")
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	cfg := &config.Config{
+		Extract: config.ExtractConfig{
+			Backoff: config.BackoffConfig{
+				RetryWaitMin: 1 * time.Second,
+				RetryWaitMax: 2 * time.Second,
+				RetryMax:     3,
+			},
+		},
+		Tiingo: config.TiingoConfig{
+			Fundamentals: config.FundamentalsConfig{
+				Daily: config.TiingoAPIConfig{
+					Format: "csv",
+				},
+				Statements: config.TiingoAPIConfig{
+					Format: "csv",
+				},
+				Meta: config.TiingoAPIConfig{
+					Format: "csv",
+				},
+			},
+		},
+	}
+
+	client, err := NewTiingoClient(cfg, logger)
+	assert.NoError(t, err)
+
+	client.HTTPClient = retryablehttp.NewClient()
+	client.HTTPClient.HTTPClient = server.Client()
+	client.BaseURL = server.URL
+
+	return client
+}
+
+func TestGetStatements(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	client := setupTestClient(t, server)
+
+	tests := []struct {
+		name        string
+		ticker      string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "successful fetch statements",
+			ticker:  "AAPL",
+			wantErr: false,
+		},
+		{
+			name:        "handles non-existent ticker",
+			ticker:      "INVALID",
+			wantErr:     true,
+			errContains: "status: 404",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := client.GetStatements(tt.ticker)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+			
+			assert.NoError(t, err)
+			assert.Contains(t, string(data), "totalAssets")
+		})
+	}
+}
+
+func TestGetMeta(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	client := setupTestClient(t, server)
+
+	tests := []struct {
+		name        string
+		tickers     string
+		wantContent string
+		wantErr     bool
+	}{
+		{
+			name:        "fetch all meta",
+			tickers:     "",
+			wantContent: "Apple Inc",
+			wantErr:     false,
+		},
+		{
+			name:        "fetch specific tickers",
+			tickers:     "AAPL,GOOGL",
+			wantContent: "Alphabet Inc",
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := client.GetMeta(tt.tickers)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			
+			assert.NoError(t, err)
+			assert.Contains(t, string(data), tt.wantContent)
+		})
+	}
+}
+
+func TestGetDailyFundamentals(t *testing.T) {
+	server := setupTestServer()
+	defer server.Close()
+
+	client := setupTestClient(t, server)
+
+	tests := []struct {
+		name        string
+		ticker      string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "successful fetch daily fundamentals",
+			ticker:  "AAPL",
+			wantErr: false,
+		},
+		{
+			name:        "handles non-existent ticker",
+			ticker:      "INVALID",
+			wantErr:     true,
+			errContains: "status: 404",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := client.GetDailyFundamentals(tt.ticker)
+			
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+			
+			assert.NoError(t, err)
+			assert.Contains(t, string(data), "marketCap")
+		})
+	}
+}
