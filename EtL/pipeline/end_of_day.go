@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"archive/zip"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -40,7 +39,7 @@ func (p *Pipeline) Close() {
 }
 
 func (p *Pipeline) DailyEndOfDay() (int, error) {
-	defer p.Close()
+	p.Close()
 
 	zipSupportedTickers, err := p.TiingoClient.GetSupportedTickers()
 	if err != nil {
@@ -88,6 +87,18 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 	}
 
 	return len(tickers), nil
+}
+
+func (p *Pipeline) DailyFundamentals() (int, error) {
+	p.Close()
+	// TODO: Implement daily fundamentals pipeline
+	return 0, nil
+}
+
+func (p *Pipeline) UpdateMetadata() (int, error) {
+	p.Close()
+	// TODO: Implement metadata update pipeline
+	return 0, nil
 }
 
 func (p *Pipeline) BackfillEndOfDay(tickers []string) (int, error) {
