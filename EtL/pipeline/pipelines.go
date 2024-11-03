@@ -39,8 +39,6 @@ func (p *Pipeline) Close() {
 }
 
 func (p *Pipeline) DailyEndOfDay() (int, error) {
-	p.Close()
-
 	zipSupportedTickers, err := p.TiingoClient.GetSupportedTickers()
 	if err != nil {
 		return 0, fmt.Errorf("error getting supported_tickers.csv.zip: %v", err)
@@ -90,13 +88,11 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 }
 
 func (p *Pipeline) DailyFundamentals() (int, error) {
-	p.Close()
 	// TODO: Implement daily fundamentals pipeline
 	return 0, nil
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
-	p.Close()
 	// TODO: Implement metadata update pipeline
 	return 0, nil
 }
