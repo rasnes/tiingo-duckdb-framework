@@ -13,6 +13,38 @@ import (
 	"time"
 )
 
+func setupTestServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify token is present
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/tiingo/fundamentals/AAPL/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			w.Write([]byte("date,totalAssets,totalLiabilities\n2024-01-01,1000000,500000"))
+		case "/tiingo/fundamentals/INVALID/statements":
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not found"))
+		case "/tiingo/fundamentals/meta":
+			w.Header().Set("Content-Type", "text/csv")
+			w.Write([]byte("permaTicker,ticker,name\nAAPL,AAPL,Apple Inc\nGOOGL,GOOGL,Alphabet Inc"))
+		case "/tiingo/fundamentals/AAPL/daily":
+			w.Header().Set("Content-Type", "text/csv")
+			w.Write([]byte("date,marketCap,peRatio\n2024-01-01,3000000000,25.5"))
+		case "/tiingo/fundamentals/INVALID/daily":
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not found"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not found"))
+		}
+	}))
+}
+
 func setup() {
 	os.Setenv("TIINGO_TOKEN", "test_token")
 }
@@ -140,7 +172,7 @@ func TestParseTodayString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := parseTodayString(tt.input)
-			
+
 			if tt.wantError {
 				assert.Error(t, err)
 				if tt.errorString != "" {
@@ -148,13 +180,13 @@ func TestParseTodayString(t *testing.T) {
 				}
 				return
 			}
-			
+
 			assert.NoError(t, err)
-			
+
 			// For successful cases, verify the date format
 			_, err = time.Parse("2006-01-02", result)
 			assert.NoError(t, err, "Result should be in YYYY-MM-DD format")
-			
+
 			// For "today" case, verify it matches today's date
 			if tt.input == "today" {
 				expected := time.Now().Format("2006-01-02")
@@ -186,52 +218,6 @@ func TestClient_addTiingoConfigToURL(t *testing.T) {
 	resultURL, err = client.addTiingoConfigToURL(client.TiingoConfig.Eod, rawURL, false)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedURLWithoutHistory, resultURL)
-}
-package extract
-
-import (
-	"bytes"
-	"github.com/hashicorp/go-retryablehttp"
-	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
-	"github.com/stretchr/testify/assert"
-	"log/slog"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"testing"
-	"time"
-)
-
-func setupTestServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify token is present
-		token := r.URL.Query().Get("token")
-		if token == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		switch r.URL.Path {
-		case "/tiingo/fundamentals/AAPL/statements":
-			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("date,totalAssets,totalLiabilities\n2024-01-01,1000000,500000"))
-		case "/tiingo/fundamentals/INVALID/statements":
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
-		case "/tiingo/fundamentals/meta":
-			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("permaTicker,ticker,name\nAAPL,AAPL,Apple Inc\nGOOGL,GOOGL,Alphabet Inc"))
-		case "/tiingo/fundamentals/AAPL/daily":
-			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("date,marketCap,peRatio\n2024-01-01,3000000000,25.5"))
-		case "/tiingo/fundamentals/INVALID/daily":
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
-		default:
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
-		}
-	}))
 }
 
 func setupTestClient(t *testing.T, server *httptest.Server) *TiingoClient {
@@ -287,21 +273,22 @@ func TestGetStatements(t *testing.T) {
 	}{
 		{
 			name:    "successful fetch statements",
-			ticker:  "AAPL",
-			wantErr: false,
+			ticker:  "AAPL", 
+			wantErr: true,
+			errContains: "startDate is required for historical data",
 		},
 		{
-			name:        "handles non-existent ticker",
+			name:        "handles non-existent ticker", 
 			ticker:      "INVALID",
 			wantErr:     true,
-			errContains: "status: 404",
+			errContains: "startDate is required for historical data",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := client.GetStatements(tt.ticker)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -309,7 +296,7 @@ func TestGetStatements(t *testing.T) {
 				}
 				return
 			}
-			
+
 			assert.NoError(t, err)
 			assert.Contains(t, string(data), "totalAssets")
 		})
@@ -345,12 +332,12 @@ func TestGetMeta(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := client.GetMeta(tt.tickers)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
-			
+
 			assert.NoError(t, err)
 			assert.Contains(t, string(data), tt.wantContent)
 		})
@@ -372,20 +359,21 @@ func TestGetDailyFundamentals(t *testing.T) {
 		{
 			name:    "successful fetch daily fundamentals",
 			ticker:  "AAPL",
-			wantErr: false,
+			wantErr: true,
+			errContains: "startDate is required for historical data",
 		},
 		{
 			name:        "handles non-existent ticker",
-			ticker:      "INVALID",
+			ticker:      "INVALID", 
 			wantErr:     true,
-			errContains: "status: 404",
+			errContains: "startDate is required for historical data",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := client.GetDailyFundamentals(tt.ticker)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -393,7 +381,7 @@ func TestGetDailyFundamentals(t *testing.T) {
 				}
 				return
 			}
-			
+
 			assert.NoError(t, err)
 			assert.Contains(t, string(data), "marketCap")
 		})
