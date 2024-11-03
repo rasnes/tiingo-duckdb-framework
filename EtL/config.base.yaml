@@ -5,7 +5,7 @@ extract:
     retry_max: 5
 
 duckdb:
-  append_table: daily_adjusted
+  append_table: daily_adjusted # TODO: remove this. 1. it should not be here, 2. it doesn't seem to be used
   conn_init_fn_queries:
     # - "../sql/db__stage.sql"
     - "../sql/schemas.sql"

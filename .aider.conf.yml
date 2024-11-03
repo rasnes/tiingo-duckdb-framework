@@ -258,10 +258,10 @@ auto-commits: false
 #auto-lint: true
 
 ## Specify command to run tests
-test-cmd: cd EtL && task test
+# test-cmd: cd EtL/pipeline && go test -v .
 
 ## Enable/disable automatic testing after changes (default: False)
-auto-test: true
+# auto-test: true
 
 ## Run tests and fix problems found
 #test: false

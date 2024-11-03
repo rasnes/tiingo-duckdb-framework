@@ -30,6 +30,6 @@ Avoid responding with information related to other environments.
 
 # GO TEST CONVENTIONS
 - Prefer tests with the real types instead of mocked interfaces, when possible. Two examples:
-  - If testing a type that uses a http client of some sort (or a corresponding interface), prefer to use the real implementation of the client to send requests and receive responses via a httptest server.
+  - If testing a type that uses a http client of some sort (or a corresponding interface), prefer to use the real implementation of the client to send requests and receive responses via a httptest server. Prefer responses to be raw, i.e. use JSON or CSV directly in the response instead of a responding with data in Go's types (like `map[string]any`).
   - If testing a type that uses a database that is efforless to create and spin up locally -- like SQLite and DuckDB -- prefer tests that run in ephemeral instances in this databases over mocking results. This gives better integration tests and is much preferred even though the tests might take a little bit longer to run.
 - When testing pure/no side effect functions, prefer templated tests. Consider adding fuzzy tests, if you think it brings value.
