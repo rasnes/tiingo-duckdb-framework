@@ -19,6 +19,7 @@ type TiingoClient struct {
 	Logger       *slog.Logger
 	TiingoConfig *config.TiingoConfig
 	tiingoToken  string
+	BaseURL      string
 }
 
 func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient, error) {
@@ -32,6 +33,7 @@ func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient,
 		Logger:       logger,
 		TiingoConfig: &config.Tiingo,
 		tiingoToken:  tiingoToken,
+		BaseURL:      "https://api.tiingo.com",
 	}
 
 	client.HTTPClient.RetryWaitMin = config.Extract.Backoff.RetryWaitMin
@@ -44,7 +46,14 @@ func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient,
 
 // GetSupportedTickers fetches the supported tickers from the Tiingo API and returns the zip file downloaded
 func (c *TiingoClient) GetSupportedTickers() ([]byte, error) {
-	url := "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+	url, err := c.addTiingoConfigToURL(
+		c.TiingoConfig.Eod,
+		fmt.Sprintf("%s/docs/tiingo/daily/supported_tickers.zip", c.BaseURL),
+		false,
+	)
+	if err != nil {
+		return nil, err
+	}
 	return c.FetchData(url, "supported_tickers.zip")
 }
 
@@ -52,7 +61,7 @@ func (c *TiingoClient) GetSupportedTickers() ([]byte, error) {
 func (c *TiingoClient) GetLastTradingDay() ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Eod,
-		"https://api.tiingo.com/tiingo/daily/prices",
+		fmt.Sprintf("%s/tiingo/daily/prices", c.BaseURL),
 		false,
 	)
 	if err != nil {
@@ -65,7 +74,7 @@ func (c *TiingoClient) GetLastTradingDay() ([]byte, error) {
 func (c *TiingoClient) GetHistory(ticker string) ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Eod,
-		fmt.Sprintf("https://api.tiingo.com/tiingo/daily/%s/prices", ticker),
+		fmt.Sprintf("%s/tiingo/daily/%s/prices", c.BaseURL, ticker),
 		true,
 	)
 	if err != nil {
@@ -79,7 +88,7 @@ func (c *TiingoClient) GetHistory(ticker string) ([]byte, error) {
 func (c *TiingoClient) GetStatements(ticker string) ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Fundamentals.Statements,
-		fmt.Sprintf("https://api.tiingo.com/tiingo/fundamentals/%s/statements", ticker),
+		fmt.Sprintf("%s/tiingo/fundamentals/%s/statements", c.BaseURL, ticker),
 		true,
 	)
 	if err != nil {
@@ -93,7 +102,7 @@ func (c *TiingoClient) GetStatements(ticker string) ([]byte, error) {
 // If `tickers` is zero value, it fetches the meta information for all tickers.
 // https://www.tiingo.com/documentation/fundamentals section 2.6.5
 func (c *TiingoClient) GetMeta(tickers string) ([]byte, error) {
-	metaURL := "https://api.tiingo.com/tiingo/fundamentals/meta"
+	metaURL := fmt.Sprintf("%s/tiingo/fundamentals/meta", c.BaseURL)
 	if tickers != "" {
 		parsedURL, _ := url.Parse(metaURL)
 		query := parsedURL.Query()
@@ -118,7 +127,7 @@ func (c *TiingoClient) GetMeta(tickers string) ([]byte, error) {
 func (c *TiingoClient) GetDailyFundamentals(ticker string) ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Fundamentals.Daily,
-		fmt.Sprintf("https://api.tiingo.com/tiingo/fundamentals/%s/daily", ticker),
+		fmt.Sprintf("%s/tiingo/fundamentals/%s/daily", c.BaseURL, ticker),
 		true,
 	)
 	if err != nil {
