@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"sort"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +112,7 @@ func setupTestConfig(t *testing.T) *config.Config {
 	// Update SQL file paths for test environment
 	var updatedQueries []string
 	for _, query := range cfg.DuckDB.ConnInitFnQueries {
-		// Handle paths starting with "../sql/"
+		// Handle paths starting with "./sql/"
 		if strings.HasPrefix(query, "./sql/") {
 			updatedQueries = append(updatedQueries, filepath.Join("..", query))
 			continue
@@ -120,11 +121,19 @@ func setupTestConfig(t *testing.T) *config.Config {
 		updatedQueries = append(updatedQueries, query)
 	}
 
+	// Add all SQL files from the test directory
+	testSQLFiles, err := filepath.Glob("../sql/test/*.sql")
+	if err != nil {
+		t.Fatalf("Failed to glob test SQL files: %v", err)
+	}
 
-	// TODO: add function that setupTestDBState that will create the tables and populate them with data, mimicking the state of the database on pipeline run.
+	// Sort the files to ensure consistent ordering
+	sort.Strings(testSQLFiles)
 
-	cfg.DuckDB.ConnInitFnQueries = updatedQueries
+	// Append test SQL files to the queries
+	initAndMockQueries := append(updatedQueries, testSQLFiles...)
 
+	cfg.DuckDB.ConnInitFnQueries = initAndMockQueries
 
 	return cfg
 }
@@ -152,6 +161,9 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 	// Setup config
 	cfg := setupTestConfig(t)
 
+	// TODO: include some statements assessing the state of the DB before running the pipeline,
+	// like the number of rows in the tables, etc.
+
 	// Create pipeline
 	pipeline, err := NewPipeline(cfg, logger)
 	assert.NoError(t, err)
@@ -174,4 +186,7 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 
 	// TODO: add test verifying selected_last_trading_day. The tables to join with should be populated as they should.
 	// TODO: add test verifying final table: "SELECT COUNT(*) as count FROM daily_adjusted"
+
+	results, err = pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM main.daily_adjusted;")
+	fmt.Println("results: ", results)
 }
