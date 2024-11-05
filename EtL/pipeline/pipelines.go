@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
@@ -17,6 +18,7 @@ type Pipeline struct {
 	DuckDB       *load.DuckDB
 	TiingoClient *extract.TiingoClient
 	Logger       *slog.Logger
+	sqlDir       string // Add this field
 }
 
 func NewPipeline(config *config.Config, logger *slog.Logger) (*Pipeline, error) {
@@ -30,10 +32,21 @@ func NewPipeline(config *config.Config, logger *slog.Logger) (*Pipeline, error) 
 		return nil, fmt.Errorf("error creating Tiingo HTTP client: %v", err)
 	}
 
+	// Determine SQL directory based on working directory
+	sqlDir := "sql"
+	if _, err := os.Stat(sqlDir); os.IsNotExist(err) {
+		// If sql/ doesn't exist in current directory, try parent
+		sqlDir = filepath.Join("..", "sql")
+		if _, err := os.Stat(sqlDir); os.IsNotExist(err) {
+			return nil, fmt.Errorf("cannot find SQL directory in either current or parent directory")
+		}
+	}
+
 	return &Pipeline{
 		DuckDB:       db,
 		TiingoClient: httpClient,
 		Logger:       logger,
+		sqlDir:       sqlDir,
 	}, nil
 }
 
@@ -74,11 +87,11 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 		return 0, fmt.Errorf("error loading last_trading_day into DB: %v", err)
 	}
 
-	if err := p.DuckDB.RunQueryFile("./sql/insert__daily_adjusted.sql"); err != nil {
+	if err := p.DuckDB.RunQueryFile(p.getSQLPath("insert__daily_adjusted.sql")); err != nil {
 		return 0, fmt.Errorf("error inserting last trading day into daily_adjusted: %v", err)
 	}
 
-	res, err := p.DuckDB.GetQueryResultsFromFile("./sql/query__selected_backfill.sql")
+	res, err := p.DuckDB.GetQueryResultsFromFile(p.getSQLPath("query__selected_backfill.sql"))
 	if err != nil {
 		return 0, fmt.Errorf("error getting backfill results: %v", err)
 	}
@@ -167,7 +180,7 @@ func (p *Pipeline) UpdateMetadata() (int, error) {
 		return 0, fmt.Errorf("error fetching metadata from Tiingo: %w", err)
 	}
 
-	insertMetaFile := "../sql/insert__fundamentals_meta.sql"
+	insertMetaFile := p.getSQLPath("insert__fundamentals_meta.sql")
 	templateContent, err := os.ReadFile(insertMetaFile)
 	if err != nil {
 		return 0, fmt.Errorf("error reading %s file: %w", insertMetaFile, err)
@@ -187,8 +200,6 @@ func (p *Pipeline) UpdateMetadata() (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error getting rows affected: %w", err)
 	}
-
-	p.Logger.Info(fmt.Sprintf("Successfully updated metadata for %d tickers", rowsAffected))
 
 	return int(rowsAffected), nil
 }
@@ -227,4 +238,9 @@ func (p *Pipeline) BackfillEndOfDay(tickers []string) (int, error) {
 	}
 
 	return len(tickers), nil
+}
+
+// Add this helper method
+func (p *Pipeline) getSQLPath(filename string) string {
+	return filepath.Join(p.sqlDir, filename)
 }

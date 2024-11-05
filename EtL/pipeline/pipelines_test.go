@@ -155,13 +155,15 @@ func setupTestConfig(t *testing.T) *config.Config {
 	// Update SQL file paths for test environment
 	var updatedQueries []string
 	for _, query := range cfg.DuckDB.ConnInitFnQueries {
-		// Handle paths starting with "./sql/"
+		// Handle both relative and absolute paths
 		if strings.HasPrefix(query, "./sql/") {
-			updatedQueries = append(updatedQueries, filepath.Join("..", query))
-			continue
+			query = strings.TrimPrefix(query, "./")
 		}
-		// Handle other paths (if any)
-		updatedQueries = append(updatedQueries, query)
+		if strings.HasPrefix(query, "../sql/") {
+			query = strings.TrimPrefix(query, "../")
+		}
+		// Always use the parent directory in tests
+		updatedQueries = append(updatedQueries, filepath.Join("..", query))
 	}
 
 	// Add all SQL files from the test directory
@@ -173,10 +175,7 @@ func setupTestConfig(t *testing.T) *config.Config {
 	// Sort the files to ensure consistent ordering
 	sort.Strings(testSQLFiles)
 
-	// Append test SQL files to the queries
-	initAndMockQueries := append(updatedQueries, testSQLFiles...)
-
-	cfg.DuckDB.ConnInitFnQueries = initAndMockQueries
+	cfg.DuckDB.ConnInitFnQueries = append(updatedQueries, testSQLFiles...)
 
 	return cfg
 }
