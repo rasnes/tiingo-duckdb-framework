@@ -24,7 +24,7 @@ type Pipeline struct {
 	timeProvider utils.TimeProvider
 }
 
-func NewPipeline(config *config.Config, logger *slog.Logger) (*Pipeline, error) {
+func NewPipeline(config *config.Config, logger *slog.Logger, timeProvider utils.TimeProvider) (*Pipeline, error) {
 	db, err := load.NewDuckDB(config, logger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DB database: %v", err)
@@ -50,6 +50,7 @@ func NewPipeline(config *config.Config, logger *slog.Logger) (*Pipeline, error) 
 		TiingoClient: httpClient,
 		Logger:       logger,
 		sqlDir:       sqlDir,
+		timeProvider: timeProvider,
 	}, nil
 }
 
