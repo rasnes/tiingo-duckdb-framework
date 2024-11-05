@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/pipeline"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -14,18 +15,28 @@ var fundamentalsCmd = &cobra.Command{
 }
 
 func newFundamentalsDailyCmd() *cobra.Command {
-	var tickers string
+	var (
+		tickers  string
+		halfOnly bool
+	)
 
 	cmd := &cobra.Command{
-		Use:   "daily [--tickers TICKER1,TICKER2,...]",
+		Use:   "daily [--tickers TICKER1,TICKER2,...] [--halfOnly]",
 		Short: "Updates daily fundamentals data for selected tickers",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			// Validate that halfOnly is only used when tickers is not provided
+			if halfOnly && tickers != "" {
+				return fmt.Errorf("--halfOnly can only be used when --tickers is not provided")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, log, err := initializeConfigAndLogger()
 			if err != nil {
 				return err
 			}
 
-			pipeline, err := pipeline.NewPipeline(cfg, log)
+			pipeline, err := pipeline.NewPipeline(cfg, log, utils.RealTimeProvider{})
 			if err != nil {
 				return fmt.Errorf("error creating pipeline: %w", err)
 			}
@@ -36,7 +47,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 				tickerSlice = strings.Split(tickers, ",")
 			}
 
-			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice)
+			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly)
 			if err != nil {
 				return fmt.Errorf("error updating daily fundamentals: %w", err)
 			}
@@ -48,6 +59,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&tickers, "tickers", "", "Comma-separated list of tickers (e.g., AAPL,MSFT,GOOGL)")
+	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	return cmd
 }
 
@@ -61,7 +73,7 @@ func newMetadataCmd() *cobra.Command {
 				return err
 			}
 
-			pipeline, err := pipeline.NewPipeline(cfg, log)
+			pipeline, err := pipeline.NewPipeline(cfg, log, nil)
 			if err != nil {
 				return fmt.Errorf("error creating pipeline: %w", err)
 			}
@@ -80,41 +92,52 @@ func newMetadataCmd() *cobra.Command {
 }
 
 func newStatementsCmd() *cobra.Command {
-    var tickers string
+	var (
+		tickers  string
+		halfOnly bool
+	)
 
-    cmd := &cobra.Command{
-        Use:   "statements [--tickers TICKER1,TICKER2,...]",
-        Short: "Updates financial statements data for selected tickers",
-        RunE: func(cmd *cobra.Command, args []string) error {
-            cfg, log, err := initializeConfigAndLogger()
-            if err != nil {
-                return err
-            }
+	cmd := &cobra.Command{
+		Use:   "statements [--tickers TICKER1,TICKER2,...] [--halfOnly]",
+		Short: "Updates financial statements data for selected tickers",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			// Validate that halfOnly is only used when tickers is not provided
+			if halfOnly && tickers != "" {
+				return fmt.Errorf("--halfOnly can only be used when --tickers is not provided")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, log, err := initializeConfigAndLogger()
+			if err != nil {
+				return err
+			}
 
-            pipeline, err := pipeline.NewPipeline(cfg, log)
-            if err != nil {
-                return fmt.Errorf("error creating pipeline: %w", err)
-            }
-            defer pipeline.Close()
+			pipeline, err := pipeline.NewPipeline(cfg, log, utils.RealTimeProvider{})
+			if err != nil {
+				return fmt.Errorf("error creating pipeline: %w", err)
+			}
+			defer pipeline.Close()
 
-            var tickerSlice []string
-            if tickers != "" {
-                tickerSlice = strings.Split(tickers, ",")
-            }
+			var tickerSlice []string
+			if tickers != "" {
+				tickerSlice = strings.Split(tickers, ",")
+			}
 
-            rowsAffected, err := pipeline.Statements(tickerSlice)
-            if err != nil {
-                return fmt.Errorf("error updating statements: %w", err)
-            }
+			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly)
+			if err != nil {
+				return fmt.Errorf("error updating statements: %w", err)
+			}
 
-            log.Info(fmt.Sprintf("Successfully updated statements for %d tickers", rowsAffected))
+			log.Info(fmt.Sprintf("Successfully updated statements for %d tickers", rowsAffected))
 
-            return nil
-        },
-    }
+			return nil
+		},
+	}
 
-    cmd.Flags().StringVar(&tickers, "tickers", "", "Comma-separated list of tickers (e.g., AAPL,MSFT,GOOGL)")
-    return cmd
+	cmd.Flags().StringVar(&tickers, "tickers", "", "Comma-separated list of tickers (e.g., AAPL,MSFT,GOOGL)")
+	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
+	return cmd
 }
 
 func init() {
