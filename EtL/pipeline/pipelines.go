@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
@@ -161,7 +160,10 @@ func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
 		// Take the modulo of the current hour to determine which half of the tickers to process.
 		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
 		if half {
-			tickersFromQuery = utils.HalfOfSlice(tickersFromQuery, time.Now().Hour()%2 == 0)
+			tickersFromQuery = utils.HalfOfSlice(
+				tickersFromQuery,
+				p.timeProvider.Now().Hour()%2 == 0,
+			)
 		}
 
 		tickers = tickersFromQuery
@@ -196,7 +198,10 @@ func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
 		// Take the modulo of the current hour to determine which half of the tickers to process.
 		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
 		if half {
-			tickersFromQuery = utils.HalfOfSlice(tickersFromQuery, time.Now().Hour()%2 == 0)
+			tickersFromQuery = utils.HalfOfSlice(
+				tickersFromQuery,
+				p.timeProvider.Now().Hour()%2 == 0,
+			)
 		}
 
 		tickers = tickersFromQuery

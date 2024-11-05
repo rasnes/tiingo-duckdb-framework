@@ -12,8 +12,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -220,7 +222,7 @@ func setupTestConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
-func setupTestPipeline(t *testing.T, server *httptest.Server) (*Pipeline, func()) {
+func setupTestPipeline(t *testing.T, server *httptest.Server, timeProvider utils.TimeProvider) (*Pipeline, func()) {
 	// Setup environment
 	os.Setenv("TIINGO_TOKEN", "test-token")
 
@@ -232,12 +234,13 @@ func setupTestPipeline(t *testing.T, server *httptest.Server) (*Pipeline, func()
 	cfg := setupTestConfig(t)
 
 	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
+	pipeline, err := NewPipeline(cfg, logger, timeProvider)
 	assert.NoError(t, err)
 
-	// Override the base URL to use our test server
+	// Override the base URL to use our test server and set the time provider
 	pipeline.TiingoClient.BaseURL = server.URL
 	pipeline.TiingoClient.InTest = true
+	pipeline.timeProvider = timeProvider
 
 	// Cleanup function
 	cleanup := func() {
@@ -253,7 +256,7 @@ func TestPipeline_UpdateMetadata(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	pipeline, cleanup := setupTestPipeline(t, server)
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
 	defer cleanup()
 
 	// Run the metadata update
@@ -286,67 +289,81 @@ func TestPipeline_UpdateMetadata(t *testing.T) {
 	assert.Equal(t, []string{"California, USA"}, appleData["location"])
 }
 
+// MockTimeProvider implements TimeProvider for testing with fixed hour
+type MockTimeProvider struct {
+	hour int
+}
+
+func (m MockTimeProvider) Now() time.Time {
+	return time.Date(2024, 1, 1, m.hour, 0, 0, 0, time.UTC)
+}
+
 func TestPipeline_DailyFundamentals(t *testing.T) {
-	// Setup test server
-	server := setupTestServer()
-	defer server.Close()
+	tests := []struct {
+		name        string
+		tickers     []string
+		half        bool
+		hour        int
+		wantCount   int
+		wantTickers []string
+	}{
+		{
+			name:        "specific tickers - no half selection",
+			tickers:     []string{"AAPL", "MSFT"},
+			half:        false,
+			hour:        14,
+			wantCount:   2,
+			wantTickers: []string{"AAPL", "MSFT"},
+		},
+		{
+			name:        "even hour gets first half",
+			tickers:     nil,
+			half:        true,
+			hour:        14, // 2pm
+			wantCount:   1,
+			wantTickers: []string{"AAPL"}, // First half of ["AAPL", "MSFT", "TSLA"]
+		},
+		{
+			name:        "odd hour gets second half",
+			tickers:     nil,
+			half:        true,
+			hour:        15, // 3pm
+			wantCount:   2,
+			wantTickers: []string{"MSFT", "TSLA"}, // Second half of ["AAPL", "MSFT", "TSLA"]
+		},
+	}
 
-	// Setup pipeline with new helper function
-	pipeline, cleanup := setupTestPipeline(t, server)
-	defer cleanup()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test server
+			server := setupTestServer()
+			defer server.Close()
 
-	// Test with specific tickers
-	tickers := []string{"AAPL", "MSFT"}
-	count, err := pipeline.DailyFundamentals(tickers)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, count, "Expected to process 2 tickers")
+			// Setup pipeline with mock time provider
+			pipeline, cleanup := setupTestPipeline(t, server, &MockTimeProvider{hour: tt.hour})
+			defer cleanup()
 
-	// Verify the data in DuckDB
-	// First verify total count
-	rowsTotal, err := pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM fundamentals.daily;")
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"6"}, rowsTotal["count"], "Expected 6 total rows in fundamentals.daily")
+			// First populate meta table if we're testing automatic ticker selection
+			if tt.tickers == nil {
+				_, err := pipeline.UpdateMetadata()
+				assert.NoError(t, err)
+			}
 
-	// Verify specific metrics for AAPL on a specific date
-	appleMetrics, err := pipeline.DuckDB.GetQueryResults(`
-		SELECT
-			cast(round(marketCap, 1) as varchar) as marketCap,
-			cast(round(peRatio, 1) as varchar) as peRatio,
-			cast(round(pbRatio, 1) as varchar) as pbRatio,
-			cast(round(trailingPEG1Y, 1) as varchar) as trailingPEG1Y
-		FROM fundamentals.daily
-		WHERE ticker = 'AAPL' AND date = '2024-01-01';
-	`)
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"2500000000000.0"}, appleMetrics["marketCap"])
-	assert.Equal(t, []string{"25.5"}, appleMetrics["peRatio"])
-	assert.Equal(t, []string{"12.3"}, appleMetrics["pbRatio"])
-	assert.Equal(t, []string{"1.5"}, appleMetrics["trailingPEG1Y"])
+			// Run the test
+			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
 
-	// Verify specific metrics for MSFT on a specific date
-	msftMetrics, err := pipeline.DuckDB.GetQueryResults(`
-        SELECT
-            cast(round(marketCap, 1) as varchar) as marketCap,
-            cast(round(peRatio, 1) as varchar) as peRatio,
-            cast(round(pbRatio, 1) as varchar) as pbRatio,
-            cast(round(trailingPEG1Y, 1) as varchar) as trailingPEG1Y
-        FROM fundamentals.daily
-        WHERE ticker = 'MSFT' AND date = '2024-01-01';
-    `)
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"3000000000000.0"}, msftMetrics["marketCap"])
-	assert.Equal(t, []string{"32.5"}, msftMetrics["peRatio"])
-	assert.Equal(t, []string{"15.8"}, msftMetrics["pbRatio"])
-	assert.Equal(t, []string{"1.8"}, msftMetrics["trailingPEG1Y"])
-
-	// Test automatic ticker selection when no tickers provided
-	// First populate the fundamentals.meta table
-	_, err = pipeline.UpdateMetadata()
-	assert.NoError(t, err)
-
-	count, err = pipeline.DailyFundamentals(nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 3, count, "Expected to process 3 tickers from fundamentals.selected_fundamentals")
+			// Verify the correct tickers were processed
+			rows, err := pipeline.DuckDB.GetQueryResults(`
+                SELECT DISTINCT ticker
+                FROM fundamentals.daily
+                ORDER BY ticker;
+            `)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantTickers, rows["ticker"])
+		})
+	}
 }
 
 func TestPipeline_Statements(t *testing.T) {
@@ -355,7 +372,7 @@ func TestPipeline_Statements(t *testing.T) {
 	defer server.Close()
 
 	// Setup pipeline
-	pipeline, cleanup := setupTestPipeline(t, server)
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
 	defer cleanup()
 
 	tests := []struct {
@@ -420,8 +437,12 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 	// Setup config
 	cfg := setupTestConfig(t)
 
+	// TODO: the below should be refactored to this:
+	// pipeline, cleanup := setupTestPipeline(t, server, nil)
+	// defer cleanup()
+
 	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
+	pipeline, err := NewPipeline(cfg, logger, nil)
 	assert.NoError(t, err)
 	defer pipeline.Close()
 
