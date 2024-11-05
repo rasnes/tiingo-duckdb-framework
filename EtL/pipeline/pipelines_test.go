@@ -119,10 +119,22 @@ func setupTestConfig(t *testing.T) *config.Config {
 		// Handle other paths (if any)
 		updatedQueries = append(updatedQueries, query)
 	}
+
+
+	// TODO: add function that setupTestDBState that will create the tables and populate them with data, mimicking the state of the database on pipeline run.
+
 	cfg.DuckDB.ConnInitFnQueries = updatedQueries
+
 
 	return cfg
 }
+
+
+
+
+
+
+
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
 	// Setup test server

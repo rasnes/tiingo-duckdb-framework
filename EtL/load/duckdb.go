@@ -176,6 +176,8 @@ func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error
 	if insert {
 		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s', delim=',', quote='\"', escape='\"', header=true);", table, tmpFile.Name())
 	} else {
+		// TODO: add 'truncate table' statement before COPY. Should it be parametrized, or always what I want? Maybe "hard code" it per now, until I
+		// I have a need for COPY with append semantics.
 		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER);", table, tmpFile.Name())
 	}
 
@@ -226,7 +228,6 @@ func (db *DuckDB) RunQuery(query string) error {
 	}
 	return nil
 }
-
 
 func (db *DuckDB) RunQueryFile(path string) error {
 	query, err := readQuery(path)
