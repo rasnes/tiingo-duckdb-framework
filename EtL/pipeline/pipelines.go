@@ -54,24 +54,6 @@ func (p *Pipeline) Close() {
 	p.DuckDB.Close()
 }
 
-func (p *Pipeline) supportedTickers() error {
-	zipSupportedTickers, err := p.TiingoClient.GetSupportedTickers()
-	if err != nil {
-		return fmt.Errorf("error getting supported_tickers.zip: %v", err)
-	}
-
-	csvSupportedTickers, err := extract.UnzipSingleCSV(zipSupportedTickers)
-	if err != nil {
-		return fmt.Errorf("error unzipping supported_tickers.zip: %v", err)
-	}
-
-	if err := p.DuckDB.LoadCSV(csvSupportedTickers, "supported_tickers", false); err != nil {
-		return fmt.Errorf("error loading supported_tickers.csv into DB: %v", err)
-	}
-
-	return nil
-}
-
 func (p *Pipeline) DailyEndOfDay() (int, error) {
 	err := p.supportedTickers()
 	if err != nil {
@@ -112,24 +94,62 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 	return len(tickers), nil
 }
 
+func (p *Pipeline) selectedFundamentals() ([]string, error) {
+	query := "select ticker from fundamentals.selected_fundamentals"
+	if os.Getenv("APP_ENV") != "prod" {
+		query += " using sample 20"
+	}
+
+	res, err := p.DuckDB.GetQueryResults(query)
+	if err != nil {
+		return nil, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
+	}
+
+	tickersFromQuery, ok := res["ticker"]
+	if !ok {
+		return nil, fmt.Errorf("ticker key not found in fundamentals.selected_fundamentals results")
+	}
+	if len(tickersFromQuery) == 0 {
+		return nil, fmt.Errorf("no tickers found in fundamentals.selected_fundamentals results")
+	}
+
+	return tickersFromQuery, nil
+}
+
+type csvPerTicker func(ticker string) (csv []byte, err error)
+
+func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, error) {
+	// TODO: This part should probably have more tailored error handling
+	// Like some HTTP error codes should be ignored (I might not have access).
+	// BUT: it seems the API sends 400 Bad Request with body: None if no access,
+	// which is the same as if the request were incorrect. Not optimal.
+	csvs := make([][]byte, 0)
+	for _, ticker := range tickers {
+		daily, err := fetch(ticker)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching data for ticker %s: %w", ticker, err)
+		}
+		csv, err := load.AddTickerColumn(daily, ticker)
+		if err != nil {
+			return nil, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", ticker, err)
+		}
+
+		csvs = append(csvs, csv)
+	}
+
+	finalCsv, err := load.ConcatCSVs(csvs)
+	if err != nil {
+		return nil, fmt.Errorf("error concatenating CSVs: %w", err)
+	}
+
+	return finalCsv, nil
+}
+
 func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
 	if len(tickers) == 0 {
-		query := "select ticker from fundamentals.selected_fundamentals"
-		if os.Getenv("APP_ENV") != "prod" {
-			query += " using sample 20"
-		}
-
-		res, err := p.DuckDB.GetQueryResults(query)
+		tickersFromQuery, err := p.selectedFundamentals()
 		if err != nil {
-			return 0, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
-		}
-
-		tickersFromQuery, ok := res["ticker"]
-		if !ok {
-			return 0, fmt.Errorf("ticker key not found in fundamentals.selected_fundamentals results")
-		}
-		if len(tickersFromQuery) == 0 {
-			return 0, fmt.Errorf("no tickers found in fundamentals.selected_fundamentals results")
+			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
 		}
 
 		tickers = tickersFromQuery
@@ -140,27 +160,36 @@ func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
 		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
 	}
 
-	// TODO: This part should probably have more tailored error handlint
-	// Like some HTTP error codes should be ignored (I might not have access).
-	// BUT: it seems the API sends 400 Bad Request with body: None if no access,
-	// which is the same as if the request were incorrect. Not optimal.
-	csvs := make([][]byte, 0)
-	for _, ticker := range upperCaseTickers {
-		daily, err := p.TiingoClient.GetDailyFundamentals(ticker)
-		if err != nil {
-			return 0, fmt.Errorf("error fetching daily fundamentals for ticker %s: %w", ticker, err)
-		}
-		csv, err := load.AddTickerColumn(daily, ticker)
-		if err != nil {
-			return 0, fmt.Errorf("error adding ticker column to daily fundamentals for ticker %s: %w", ticker, err)
-		}
-
-		csvs = append(csvs, csv)
+	finalCsv, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetDailyFundamentals)
+	if err != nil {
+		return 0, fmt.Errorf("error fetching daily fundamentals: %w", err)
 	}
 
-	finalCsv, err := load.ConcatCSVs(csvs)
+	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.daily", true); err != nil {
+		return 0, fmt.Errorf("error loading daily fundamentals to DB: %w", err)
+	}
+
+	return len(tickers), nil
+}
+
+func (p *Pipeline) Statements(tickers []string) (int, error) {
+	if len(tickers) == 0 {
+		tickersFromQuery, err := p.selectedFundamentals()
+		if err != nil {
+			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		}
+
+		tickers = tickersFromQuery
+	}
+
+	upperCaseTickers := make([]string, 0)
+	for _, ticker := range tickers {
+		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
+	}
+
+	finalCsv, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetStatements)
 	if err != nil {
-		return 0, fmt.Errorf("error concatenating CSVs: %w", err)
+		return 0, fmt.Errorf("error fetching statements: %w", err)
 	}
 
 	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.daily", true); err != nil {
@@ -245,4 +274,22 @@ func (p *Pipeline) BackfillEndOfDay(tickers []string) (int, error) {
 // Add this helper method
 func (p *Pipeline) getSQLPath(filename string) string {
 	return filepath.Join(p.sqlDir, filename)
+}
+
+func (p *Pipeline) supportedTickers() error {
+	zipSupportedTickers, err := p.TiingoClient.GetSupportedTickers()
+	if err != nil {
+		return fmt.Errorf("error getting supported_tickers.zip: %v", err)
+	}
+
+	csvSupportedTickers, err := extract.UnzipSingleCSV(zipSupportedTickers)
+	if err != nil {
+		return fmt.Errorf("error unzipping supported_tickers.zip: %v", err)
+	}
+
+	if err := p.DuckDB.LoadCSV(csvSupportedTickers, "supported_tickers", false); err != nil {
+		return fmt.Errorf("error loading supported_tickers.csv into DB: %v", err)
+	}
+
+	return nil
 }
