@@ -53,27 +53,27 @@ type TiingoAPIConfig struct {
 // and merges it with the environment-specific configuration.
 func NewConfig(baseConfigReader io.Reader, envConfigReader io.Reader, env string) (*Config, error) {
 	if env == "" { // Use the provided 'env' or default to "dev"
-			env = "dev"
+		env = "dev"
 	}
 
 	viper.SetConfigType("yaml")
 
 	// Read the base configuration
 	if err := viper.ReadConfig(baseConfigReader); err != nil {
-			return nil, fmt.Errorf("error reading base config: %w", err)
+		return nil, fmt.Errorf("error reading base config: %w", err)
 	}
 
 	// Merge with environment-specific configuration (only if provided)
 	if envConfigReader != nil {
-			if err := viper.MergeConfig(envConfigReader); err != nil {
-					log.Printf("Error merging environment-specific config: %s", err)
-					// Handle the error as needed (log, return error, etc.)
-			}
+		if err := viper.MergeConfig(envConfigReader); err != nil {
+			log.Printf("Error merging environment-specific config: %s", err)
+			// Handle the error as needed (log, return error, etc.)
+		}
 	}
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-			return nil, fmt.Errorf("unable to decode into struct: %w", err)
+		return nil, fmt.Errorf("unable to decode into struct: %w", err)
 	}
 
 	// Set the environment directly

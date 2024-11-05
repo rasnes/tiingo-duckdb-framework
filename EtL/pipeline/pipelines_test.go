@@ -377,71 +377,71 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 }
 
 func TestPipeline_Statements(t *testing.T) {
-    tests := []struct {
-        name        string
-        tickers     []string
-        half        bool
-        hour        int
-        wantCount   int
-        wantTickers []string
-    }{
-        {
-            name:        "specific tickers - no half selection",
-            tickers:     []string{"MSFT"},
-            half:        false,
-            hour:        14,
-            wantCount:   1,
-            wantTickers: []string{"MSFT"},
-        },
-        {
-            name:        "even hour gets first half",
-            tickers:     nil,
-            half:        true,
-            hour:        14, // 2pm
-            wantCount:   1,
-            wantTickers: []string{"AAPL"}, // First half of ["AAPL", "MSFT", "TSLA"]
-        },
-        {
-            name:        "odd hour gets second half",
-            tickers:     nil,
-            half:        true,
-            hour:        15, // 3pm
-            wantCount:   2,
-            wantTickers: []string{"MSFT", "TSLA"}, // Second half of ["AAPL", "MSFT", "TSLA"]
-        },
-    }
+	tests := []struct {
+		name        string
+		tickers     []string
+		half        bool
+		hour        int
+		wantCount   int
+		wantTickers []string
+	}{
+		{
+			name:        "specific tickers - no half selection",
+			tickers:     []string{"MSFT"},
+			half:        false,
+			hour:        14,
+			wantCount:   1,
+			wantTickers: []string{"MSFT"},
+		},
+		{
+			name:        "even hour gets first half",
+			tickers:     nil,
+			half:        true,
+			hour:        14, // 2pm
+			wantCount:   1,
+			wantTickers: []string{"AAPL"}, // First half of ["AAPL", "MSFT", "TSLA"]
+		},
+		{
+			name:        "odd hour gets second half",
+			tickers:     nil,
+			half:        true,
+			hour:        15, // 3pm
+			wantCount:   2,
+			wantTickers: []string{"MSFT", "TSLA"}, // Second half of ["AAPL", "MSFT", "TSLA"]
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            // Setup test server
-            server := setupTestServer()
-            defer server.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test server
+			server := setupTestServer()
+			defer server.Close()
 
-            // Setup pipeline with mock time provider
-            pipeline, cleanup := setupTestPipeline(t, server, &MockTimeProvider{hour: tt.hour})
-            defer cleanup()
+			// Setup pipeline with mock time provider
+			pipeline, cleanup := setupTestPipeline(t, server, &MockTimeProvider{hour: tt.hour})
+			defer cleanup()
 
-            // First populate meta table if we're testing automatic ticker selection
-            if tt.tickers == nil {
-                _, err := pipeline.UpdateMetadata()
-                assert.NoError(t, err)
-            }
+			// First populate meta table if we're testing automatic ticker selection
+			if tt.tickers == nil {
+				_, err := pipeline.UpdateMetadata()
+				assert.NoError(t, err)
+			}
 
-            // Run the test
-            count, err := pipeline.Statements(tt.tickers, tt.half)
-            assert.NoError(t, err)
-            assert.Equal(t, tt.wantCount, count)
+			// Run the test
+			count, err := pipeline.Statements(tt.tickers, tt.half)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
 
-            // Verify the correct tickers were processed
-            rows, err := pipeline.DuckDB.GetQueryResults(`
+			// Verify the correct tickers were processed
+			rows, err := pipeline.DuckDB.GetQueryResults(`
                 SELECT DISTINCT ticker
                 FROM fundamentals.statements
                 ORDER BY ticker;
             `)
-            assert.NoError(t, err)
-            assert.Equal(t, tt.wantTickers, rows["ticker"])
-        })
-    }
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantTickers, rows["ticker"])
+		})
+	}
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {

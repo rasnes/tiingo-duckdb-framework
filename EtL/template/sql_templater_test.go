@@ -30,16 +30,16 @@ func TestExecuteSqlTemplate(t *testing.T) {
 			name: "successful template execution",
 			params: map[string]any{
 				"TableName": "users",
-				"ID":       123,
+				"ID":        123,
 			},
 			want:    "SELECT * FROM users WHERE id = 123;",
 			wantErr: false,
 		},
 		{
-			name:       "missing parameter",
-			params:     map[string]any{},
-			want:       "SELECT * FROM <no value> WHERE id = <no value>;",
-			wantErr:    false,
+			name:    "missing parameter",
+			params:  map[string]any{},
+			want:    "SELECT * FROM <no value> WHERE id = <no value>;",
+			wantErr: false,
 		},
 	}
 

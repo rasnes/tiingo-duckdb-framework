@@ -332,7 +332,7 @@ func TestGetStatements(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := client.GetStatements(tt.ticker)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -340,7 +340,7 @@ func TestGetStatements(t *testing.T) {
 				}
 				return
 			}
-			
+
 			assert.NoError(t, err)
 			for _, content := range tt.wantContent {
 				assert.Contains(t, string(data), content)
@@ -370,7 +370,7 @@ func TestGetMeta(t *testing.T) {
 		{
 			name:        "fetch specific tickers",
 			tickers:     "AAPL,MSFT",
-			wantContent: "Microsoft",  // This matches our mock response
+			wantContent: "Microsoft", // This matches our mock response
 			wantErr:     false,
 		},
 	}

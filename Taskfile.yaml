@@ -120,9 +120,9 @@ tasks:
 
   # Go
   go:lint:
-    desc: run golangci-lint
+    desc: run golangci-lint in current directory
     cmds:
-      - golangci-lint run ./...
+      - golangci-lint run ./...  # The ./... pattern only matches current dir and subdirs
 
   go:vet:
     desc: run go vet
@@ -139,12 +139,22 @@ tasks:
           exit 1
         fi
 
+  go:fmt-fix:
+    desc: fix code formatting
+    cmds:
+      - gofmt -w .
+
   go:check:
     desc: run all static code checks
     cmds:
       - task: go:fmt
       - task: go:vet
       - task: go:lint
+
+  go:fix:
+    desc: fix all auto-fixable issues
+    cmds:
+      - task: go:fmt-fix
 
   go:ci:
     desc: run all CI checks
