@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
@@ -90,7 +91,6 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 		return 0, nil
 	}
 
-	fmt.Println("tickers", tickers)
 	nTickers, err := p.BackfillEndOfDay(tickers)
 	if err != nil {
 		return nTickers, fmt.Errorf("error backfilling tickers: %v", err)
@@ -101,29 +101,36 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 
 func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
 	if len(tickers) == 0 {
-		query := "select ticker from selected_fundamentals"
+		query := "select ticker from fundamentals.selected_fundamentals"
 		if os.Getenv("APP_ENV") != "prod" {
 			query += " using sample 20"
 		}
 
 		res, err := p.DuckDB.GetQueryResults(query)
 		if err != nil {
-			return 0, fmt.Errorf("error getting selected_fundamentals results: %w", err)
+			return 0, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
 		}
 
 		tickersFromQuery, ok := res["ticker"]
 		if !ok {
-			return 0, fmt.Errorf("ticker key not found in selected_fundamentals results")
+			return 0, fmt.Errorf("ticker key not found in fundamentals.selected_fundamentals results")
 		}
-		if len(tickers) == 0 {
-			return 0, fmt.Errorf("no tickers found in selected_fundamentals results")
+		if len(tickersFromQuery) == 0 {
+			return 0, fmt.Errorf("no tickers found in fundamentals.selected_fundamentals results")
 		}
 
 		tickers = tickersFromQuery
 	}
 
-	csvs := make([][]byte, 0)
+	upperCaseTickers := make([]string, 0)
 	for _, ticker := range tickers {
+		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
+	}
+
+	// TODO: This part should probably have more tailored error handling
+	// Like some HTTP error codes should be ignored (I might not have access).
+	csvs := make([][]byte, 0)
+	for _, ticker := range upperCaseTickers {
 		daily, err := p.TiingoClient.GetDailyFundamentals(ticker)
 		if err != nil {
 			return 0, fmt.Errorf("error fetching daily fundamentals for ticker %s: %w", ticker, err)
