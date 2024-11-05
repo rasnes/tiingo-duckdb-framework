@@ -70,6 +70,16 @@ AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 `
 			w.Write([]byte(csvContent))
 
+		case "/tiingo/fundamentals/meta":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,sicSector,sicIndustry,reportingCurrency,location,companyWebsite,secFilingWebsite,statementLastUpdated,dailyLastUpdated,dataProviderPermaTicker
+US000000000038,aapl,Apple Inc,True,False,Technology,Consumer Electronics,3571,Manufacturing,Electronic Computers,usd,"California, USA",http://www.apple.com,https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193,2024-11-02 01:01:16,2024-11-05 02:10:59,199059
+US000000000042,msft,Microsoft Corporation,True,False,Technology,Software Development,7372,Services,Software Development,usd,"Washington, USA",http://www.microsoft.com,https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000789019,2024-11-02 00:15:22,2024-11-05 02:15:33,199060
+US000000000091,tsla,Tesla Inc,True,False,Consumer Cyclical,Auto Manufacturers,3711,Manufacturing,Motor Vehicles,usd,"Texas, USA",http://www.tesla.com,https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001318605,2024-11-01 23:45:11,2024-11-05 02:05:44,199061
+CN000000000001,000001,Ping An Bank Co Ltd,True,False,Financial Services,Banks,6021,Finance,National Banks,cny,"Shenzhen, China",http://www.pingan.cn,http://www.szse.cn,2024-11-02 03:30:15,2024-11-05 04:22:18,199062
+CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Services,Banks,6021,Finance,National Banks,cny,"Shanghai, China",http://www.spdb.com.cn,http://www.sse.com.cn,2024-11-02 03:15:44,2024-11-05 04:18:55,199063`
+			w.Write([]byte(csvContent))
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not found"))
@@ -145,6 +155,60 @@ func setupTestConfig(t *testing.T) *config.Config {
 	cfg.DuckDB.ConnInitFnQueries = initAndMockQueries
 
 	return cfg
+}
+
+func TestPipeline_UpdateMetadata(t *testing.T) {
+	// Setup test server
+	server := setupTestServer()
+	defer server.Close()
+
+	// Setup environment
+	os.Setenv("TIINGO_TOKEN", "test-token")
+	defer os.Unsetenv("TIINGO_TOKEN")
+
+	// Setup logger
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+
+	// Setup config
+	cfg := setupTestConfig(t)
+
+	// Create pipeline
+	pipeline, err := NewPipeline(cfg, logger)
+	assert.NoError(t, err)
+	defer pipeline.Close()
+
+	// Override the base URL to use our test server
+	pipeline.TiingoClient.BaseURL = server.URL
+
+	// Run the metadata update
+	count, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
+	assert.Equal(t, 5, count, "Expected 5 rows to be inserted into fundamentals.meta")
+
+	// Verify the data in DuckDB
+	// First verify total count
+	rowsTotal, err := pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM fundamentals.meta;")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"5"}, rowsTotal["count"], "Expected 5 total rows in fundamentals.meta")
+
+	// Then verify US tickers specifically through the view
+	rowsUS, err := pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM fundamentals.selected_fundamentals;")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"3"}, rowsUS["count"], "Expected 3 US tickers in selected_fundamentals view")
+
+	// Verify specific fields for a known ticker
+	appleData, err := pipeline.DuckDB.GetQueryResults(`
+		SELECT permaTicker, name, sector, industry, location 
+		FROM fundamentals.meta 
+		WHERE ticker = 'aapl';
+	`)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"US000000000038"}, appleData["permaTicker"])
+	assert.Equal(t, []string{"Apple Inc"}, appleData["name"])
+	assert.Equal(t, []string{"Technology"}, appleData["sector"])
+	assert.Equal(t, []string{"Consumer Electronics"}, appleData["industry"])
+	assert.Equal(t, []string{"California, USA"}, appleData["location"])
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {

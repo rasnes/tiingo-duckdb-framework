@@ -40,19 +40,28 @@ func (p *Pipeline) Close() {
 	p.DuckDB.Close()
 }
 
-func (p *Pipeline) DailyEndOfDay() (int, error) {
+func (p *Pipeline) supportedTickers() error {
 	zipSupportedTickers, err := p.TiingoClient.GetSupportedTickers()
 	if err != nil {
-		return 0, fmt.Errorf("error getting supported_tickers.csv.zip: %v", err)
+		return fmt.Errorf("error getting supported_tickers.csv.zip: %v", err)
 	}
 
 	csvSupportedTickers, err := extract.UnzipSingleCSV(zipSupportedTickers)
 	if err != nil {
-		return 0, fmt.Errorf("error unzipping supported_tickers.csv.zip: %v", err)
+		return fmt.Errorf("error unzipping supported_tickers.csv.zip: %v", err)
 	}
 
 	if err := p.DuckDB.LoadCSV(csvSupportedTickers, "supported_tickers", false); err != nil {
-		return 0, fmt.Errorf("error loading supported_tickers.csv into DB: %v", err)
+		return fmt.Errorf("error loading supported_tickers.csv into DB: %v", err)
+	}
+
+	return nil
+}
+
+func (p *Pipeline) DailyEndOfDay() (int, error) {
+	err := p.supportedTickers()
+	if err != nil {
+		return 0, fmt.Errorf("error getting supported tickers: %v", err)
 	}
 
 	lastTradingDay, err := p.TiingoClient.GetLastTradingDay()
@@ -96,6 +105,11 @@ func (p *Pipeline) DailyFundamentals() (int, error) {
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
+	err := p.supportedTickers()
+	if err != nil {
+		return 0, fmt.Errorf("error getting supported tickers: %v", err)
+	}
+
 	// Get fundamentals metadata for all tickers from Tiingo API
 	metadata, err := p.TiingoClient.GetMeta("")
 	if err != nil {
