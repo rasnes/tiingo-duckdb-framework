@@ -204,6 +204,7 @@ func TestPipeline_UpdateMetadata(t *testing.T) {
 
 	// Override the base URL to use our test server
 	pipeline.TiingoClient.BaseURL = server.URL
+	pipeline.TiingoClient.InTest = true
 
 	// Run the metadata update
 	count, err := pipeline.UpdateMetadata()
@@ -258,6 +259,7 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 
 	// Override the base URL to use our test server
 	pipeline.TiingoClient.BaseURL = server.URL
+	pipeline.TiingoClient.InTest = true
 
 	// Test with specific tickers
 	tickers := []string{"AAPL", "MSFT"}
@@ -352,6 +354,7 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 
 	// Override the base URL to use our test server
 	pipeline.TiingoClient.BaseURL = server.URL
+	pipeline.TiingoClient.InTest = true
 
 	// Run the pipeline
 	count, err := pipeline.DailyEndOfDay() // Count here is only if backfill happens, not if no backfills are needed.

@@ -20,6 +20,7 @@ type TiingoClient struct {
 	TiingoConfig *config.TiingoConfig
 	tiingoToken  string
 	BaseURL      string
+	InTest       bool
 }
 
 func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient, error) {
@@ -46,9 +47,16 @@ func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient,
 
 // GetSupportedTickers fetches the supported tickers from the Tiingo API and returns the zip file downloaded
 func (c *TiingoClient) GetSupportedTickers() ([]byte, error) {
+	var baseURL string
+	if !c.InTest {
+		baseURL = "https://apimedia.tiingo.com"
+	} else {
+		baseURL = c.BaseURL
+	}
+
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Eod,
-		fmt.Sprintf("%s/docs/tiingo/daily/supported_tickers.zip", c.BaseURL),
+		fmt.Sprintf("%s/docs/tiingo/daily/supported_tickers.zip", baseURL),
 		false,
 	)
 	if err != nil {

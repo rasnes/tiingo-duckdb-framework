@@ -44,12 +44,12 @@ func (p *Pipeline) Close() {
 func (p *Pipeline) supportedTickers() error {
 	zipSupportedTickers, err := p.TiingoClient.GetSupportedTickers()
 	if err != nil {
-		return fmt.Errorf("error getting supported_tickers.csv.zip: %v", err)
+		return fmt.Errorf("error getting supported_tickers.zip: %v", err)
 	}
 
 	csvSupportedTickers, err := extract.UnzipSingleCSV(zipSupportedTickers)
 	if err != nil {
-		return fmt.Errorf("error unzipping supported_tickers.csv.zip: %v", err)
+		return fmt.Errorf("error unzipping supported_tickers.zip: %v", err)
 	}
 
 	if err := p.DuckDB.LoadCSV(csvSupportedTickers, "supported_tickers", false); err != nil {
@@ -74,11 +74,11 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 		return 0, fmt.Errorf("error loading last_trading_day into DB: %v", err)
 	}
 
-	if err := p.DuckDB.RunQueryFile("../sql/insert__daily_adjusted.sql"); err != nil {
+	if err := p.DuckDB.RunQueryFile("./sql/insert__daily_adjusted.sql"); err != nil {
 		return 0, fmt.Errorf("error inserting last trading day into daily_adjusted: %v", err)
 	}
 
-	res, err := p.DuckDB.GetQueryResultsFromFile("../sql/query__selected_backfill.sql")
+	res, err := p.DuckDB.GetQueryResultsFromFile("./sql/query__selected_backfill.sql")
 	if err != nil {
 		return 0, fmt.Errorf("error getting backfill results: %v", err)
 	}
