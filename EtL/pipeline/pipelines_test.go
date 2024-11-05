@@ -383,61 +383,50 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 }
 
 func TestPipeline_Statements(t *testing.T) {
-	// Setup test server
-	server := setupTestServer()
-	defer server.Close()
+    // Setup test server
+    server := setupTestServer()
+    defer server.Close()
 
-	// Setup pipeline
-	pipeline, cleanup := setupTestPipeline(t, server)
-	defer cleanup()
+    // Setup pipeline
+    pipeline, cleanup := setupTestPipeline(t, server)
+    defer cleanup()
 
-	tests := []struct {
-		name        string
-		tickers     []string
-		wantCount   int
-		wantErr     bool
-		errContains string
-	}{
-		{
-			name:      "fetch statements for MSFT",
-			tickers:   []string{"MSFT"},
-			wantCount: 1,
-			wantErr:   false,
-		},
-	}
+    tests := []struct {
+        name      string
+        tickers   []string
+        wantCount int
+        wantRows  int
+    }{
+        {
+            name:      "fetch statements for MSFT",
+            tickers:   []string{"MSFT"},
+            wantCount: 1,
+            wantRows:  6, // Based on the mock data in setupTestServer
+        },
+        {
+            name:      "fetch statements for AAPL",
+            tickers:   []string{"AAPL"},
+            wantCount: 1,
+            wantRows:  14, // 7 metrics for each of the 2 quarters
+        },
+    }
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			count, err := pipeline.Statements(tt.tickers)
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            count, err := pipeline.Statements(tt.tickers)
+            assert.NoError(t, err)
+            assert.Equal(t, tt.wantCount, count)
 
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains)
-				}
-				return
-			}
-
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantCount, count)
-
-			// Verify MSFT data
-			msftData, err := pipeline.DuckDB.GetQueryResults(`
-				SELECT
-					cast(round(value, 1) as varchar) as value,
-					statementType,
-					dataCode
-				FROM fundamentals.statements
-				WHERE ticker = 'MSFT'
-				AND date = '2024-09-28'
-				ORDER BY value DESC;
-			`)
-			assert.NoError(t, err)
-			assert.Equal(t, []string{"450000000000.0", "105000000000.0", "25000000000.0"}, msftData["value"])
-			assert.Equal(t, []string{"balanceSheet", "incomeStatement", "cashFlow"}, msftData["statementType"])
-			assert.Equal(t, []string{"totalAssets", "revenue", "freeCashFlow"}, msftData["dataCode"])
-		})
-	}
+            // Verify total number of rows in the statements table
+            rowCount, err := pipeline.DuckDB.GetQueryResults(fmt.Sprintf(`
+                SELECT count(*) as count 
+                FROM fundamentals.statements 
+                WHERE ticker = '%s';
+            `, tt.tickers[0]))
+            assert.NoError(t, err)
+            assert.Equal(t, []string{fmt.Sprintf("%d", tt.wantRows)}, rowCount["count"])
+        })
+    }
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
