@@ -10,9 +10,9 @@ create or replace view selected_us_tickers as (
       exchange in ('NYSE', 'NASDAQ', 'NYSE MKT', 'NYSE ARCA', 'AMEX')
       and startDate is not null
       and (
-          assetType = 'Stock'
-          -- only select ETFs that still exist
-          or (assetType = 'ETF' and endDate = max_end_date.maxEndDate)
+        assetType = 'Stock'
+        -- only select ETFs that still exist
+        or (assetType = 'ETF' and endDate = max_end_date.maxEndDate)
       )
   )
   select *

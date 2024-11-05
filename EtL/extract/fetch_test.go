@@ -25,30 +25,30 @@ func setupTestServer() *httptest.Server {
 		switch r.URL.Path {
 		case "/tiingo/fundamentals/AAPL/statements":
 			w.Header().Set("Content-Type", "text/csv")
-			w.Write([]byte("date,year,quarter,statementType,dataCode,value\n" +
+			_, _ = w.Write([]byte("date,year,quarter,statementType,dataCode,value\n" +
 				"2024-03-30,2024,2,balanceSheet,acctRec,41150000000.0\n" +
 				"2024-03-30,2024,2,balanceSheet,debt,104590000000.0\n" +
 				"2023-12-31,2023,4,incomeStatement,opex,14371000000.0\n" +
 				"2023-09-30,2023,3,cashFlow,issrepayDebt,-3148000000.0"))
 		case "/tiingo/fundamentals/ERROR/statements":
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
+			_, _ = w.Write([]byte("Not found"))
 		case "/tiingo/fundamentals/ERROR/daily":
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Unauthorized"))
+			_, _ = w.Write([]byte("Unauthorized"))
 		case "/tiingo/fundamentals/ERROR/meta":
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Server error"))
+			_, _ = w.Write([]byte("Server error"))
 		case "/tiingo/fundamentals/meta":
 			w.Header().Set("Content-Type", "text/csv")
 			// Full response when no columns specified
 			if r.URL.Query().Get("columns") == "" {
-				w.Write([]byte("permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,sicSector,sicIndustry,reportingCurrency,location,companyWebsite,secFilingWebsite,statementLastUpdated,dailyLastUpdated\n" +
+				_, _ = w.Write([]byte("permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,sicSector,sicIndustry,reportingCurrency,location,companyWebsite,secFilingWebsite,statementLastUpdated,dailyLastUpdated\n" +
 					"AAPL123,AAPL,Apple Inc,True,False,Tech,Electronics,1234,Mfg,Computers,USD,US,apple.com,sec.gov,2024-01-01,2024-01-01\n" +
 					"MSFT456,MSFT,Microsoft,True,False,Tech,Software,5678,Svc,Software,USD,US,msft.com,sec.gov,2024-01-01,2024-01-01"))
 			} else {
 				// Response when specific columns are requested
-				w.Write([]byte("permaTicker,ticker,name\n" +
+				_, _ = w.Write([]byte("permaTicker,ticker,name\n" +
 					"US000000000038,aapl,Apple Inc\n" +
 					"US000000000042,msft,Microsoft Corporation"))
 			}
@@ -56,17 +56,17 @@ func setupTestServer() *httptest.Server {
 			w.Header().Set("Content-Type", "text/csv")
 			// Full response when no columns specified
 			if r.URL.Query().Get("columns") == "" {
-				w.Write([]byte("date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y\n2024-01-01,1000000000.0,1100000000.0,15.5,2.5,1.2"))
+				_, _ = w.Write([]byte("date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y\n2024-01-01,1000000000.0,1100000000.0,15.5,2.5,1.2"))
 			} else {
 				// Response when specific columns are requested
-				w.Write([]byte("date,marketCap,\n2024-01-01,1000000000.0"))
+				_, _ = w.Write([]byte("date,marketCap,\n2024-01-01,1000000000.0"))
 			}
 		case "/tiingo/fundamentals/INVALID/daily":
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
+			_, _ = w.Write([]byte("Not found"))
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
+			_, _ = w.Write([]byte("Not found"))
 		}
 	}))
 }
@@ -141,7 +141,7 @@ func TestClient_FetchData(t *testing.T) {
 	// Mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test content"))
+		_, _ = w.Write([]byte("test content"))
 	}))
 	defer server.Close()
 
@@ -332,7 +332,7 @@ func TestGetStatements(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := client.GetStatements(tt.ticker)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -340,7 +340,7 @@ func TestGetStatements(t *testing.T) {
 				}
 				return
 			}
-			
+
 			assert.NoError(t, err)
 			for _, content := range tt.wantContent {
 				assert.Contains(t, string(data), content)
@@ -370,7 +370,7 @@ func TestGetMeta(t *testing.T) {
 		{
 			name:        "fetch specific tickers",
 			tickers:     "AAPL,MSFT",
-			wantContent: "Microsoft",  // This matches our mock response
+			wantContent: "Microsoft", // This matches our mock response
 			wantErr:     false,
 		},
 	}

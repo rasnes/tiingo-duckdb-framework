@@ -12,8 +12,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/marcboeker/go-duckdb"
 	_ "github.com/marcboeker/go-duckdb"
+	duckdb "github.com/marcboeker/go-duckdb"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
 )

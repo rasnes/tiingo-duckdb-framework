@@ -17,7 +17,7 @@ func newDailyCmd() *cobra.Command {
 				return err
 			}
 
-			pipeline, err := pipeline.NewPipeline(cfg, log)
+			pipeline, err := pipeline.NewPipeline(cfg, log, nil)
 			if err != nil {
 				return fmt.Errorf("error creating pipeline: %w", err)
 			}

@@ -12,8 +12,10 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +42,7 @@ ETFGONE,NYSE,ETF,USD,2010-02-11,2010-01-01
 TSLA,NASDAQ,Stock,USD,2010-06-29,2024-01-01
 AMZN,NASDAQ,Stock,USD,1997-05-15,2024-01-01
 `
-			w.Write(createTestZip(csvContent))
+			_, _ = w.Write(createTestZip(csvContent))
 
 		case "/tiingo/daily/prices":
 			w.Header().Set("Content-Type", "text/csv")
@@ -50,7 +52,7 @@ msft,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 tsla,2024-01-01,191.5,192.0,190.5,191.0,1100000,191.5,192.0,190.5,191.0,1100000,0.0,0.9
 AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,0.1,1.0
 `
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/daily/AMZN/prices":
 			w.Header().Set("Content-Type", "text/csv")
@@ -59,7 +61,7 @@ AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 2023-01-01,130.5,130.5,1200000
 2021-01-01,191.5,191.5,1100000
 `
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/daily/TSLA/prices":
 			w.Header().Set("Content-Type", "text/csv")
@@ -68,7 +70,7 @@ AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 2023-01-01,300.2,300.2,900000
 2022-01-01,300.2,300.2,900000
 `
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/meta":
 			w.Header().Set("Content-Type", "text/csv")
@@ -78,7 +80,7 @@ US000000000042,msft,Microsoft Corporation,True,False,Technology,Software Develop
 US000000000091,tsla,Tesla Inc,True,False,Consumer Cyclical,Auto Manufacturers,3711,Manufacturing,Motor Vehicles,usd,"Texas, USA",http://www.tesla.com,https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001318605,2024-11-01 23:45:11,2024-11-05 02:05:44,199061
 CN000000000001,000001,Ping An Bank Co Ltd,True,False,Financial Services,Banks,6021,Finance,National Banks,cny,"Shenzhen, China",http://www.pingan.cn,http://www.szse.cn,2024-11-02 03:30:15,2024-11-05 04:22:18,199062
 CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Services,Banks,6021,Finance,National Banks,cny,"Shanghai, China",http://www.spdb.com.cn,http://www.sse.com.cn,2024-11-02 03:15:44,2024-11-05 04:18:55,199063`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/AAPL/daily":
 			w.Header().Set("Content-Type", "text/csv")
@@ -86,7 +88,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-01,2500000000000.0,2550000000000.0,25.5,12.3,1.5
 2024-01-02,2520000000000.0,2570000000000.0,25.7,12.4,1.52
 2024-01-03,2480000000000.0,2530000000000.0,25.3,12.2,1.48`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/MSFT/daily":
 			w.Header().Set("Content-Type", "text/csv")
@@ -94,7 +96,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-01,3000000000000.0,3050000000000.0,32.5,15.8,1.8
 2024-01-02,3020000000000.0,3070000000000.0,32.7,15.9,1.82
 2024-01-03,2980000000000.0,3030000000000.0,32.3,15.7,1.78`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/TSLA/daily":
 			w.Header().Set("Content-Type", "text/csv")
@@ -102,11 +104,51 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-01,2000000000000.0,2050000000000.0,20.5,10.8,1.2
 2024-01-02,2020000000000.0,2070000000000.0,20.7,10.9,1.22
 2024-01-03,1980000000000.0,2030000000000.0,20.3,10.7,1.18`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
+
+		case "/tiingo/fundamentals/AAPL/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `date,year,quarter,statementType,dataCode,value
+2024-09-28,2024,4,balanceSheet,totalAssets,364980000000.0
+2024-09-28,2024,4,balanceSheet,acctRec,66243000000.0
+2024-09-28,2024,4,incomeStatement,revenue,94930000000.0
+2024-09-28,2024,4,incomeStatement,netinc,14736000000.0
+2024-09-28,2024,4,cashFlow,freeCashFlow,23903000000.0
+2024-09-28,2024,4,cashFlow,capex,-2908000000.0
+2024-09-28,2024,4,overview,roa,0.270226599025453
+2024-06-30,2024,3,balanceSheet,totalAssets,355800000000.0
+2024-06-30,2024,3,balanceSheet,acctRec,64100000000.0
+2024-06-30,2024,3,incomeStatement,revenue,89100000000.0
+2024-06-30,2024,3,incomeStatement,netinc,13800000000.0
+2024-06-30,2024,3,cashFlow,freeCashFlow,22500000000.0
+2024-06-30,2024,3,cashFlow,capex,-2700000000.0
+2024-06-30,2024,3,overview,roa,0.265`
+			_, _ = w.Write([]byte(csvContent))
+
+		case "/tiingo/fundamentals/MSFT/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `date,year,quarter,statementType,dataCode,value
+2024-09-28,2024,4,balanceSheet,totalAssets,450000000000.0
+2024-09-28,2024,4,incomeStatement,revenue,105000000000.0
+2024-09-28,2024,4,cashFlow,freeCashFlow,25000000000.0
+2024-06-30,2024,3,balanceSheet,totalAssets,440000000000.0
+2024-06-30,2024,3,incomeStatement,revenue,100000000000.0
+2024-06-30,2024,3,cashFlow,freeCashFlow,24000000000.0`
+			_, _ = w.Write([]byte(csvContent))
+		case "/tiingo/fundamentals/TSLA/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `date,year,quarter,statementType,dataCode,value
+2024-09-28,2024,4,balanceSheet,totalAssets,120000000000.0
+2024-09-28,2024,4,incomeStatement,revenue,23000000000.0
+2024-09-28,2024,4,cashFlow,freeCashFlow,8000000000.0
+2024-06-30,2024,3,balanceSheet,totalAssets,115000000000.0
+2024-06-30,2024,3,incomeStatement,revenue,21000000000.0
+2024-06-30,2024,3,cashFlow,freeCashFlow,7500000000.0`
+			_, _ = w.Write([]byte(csvContent))
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
+			_, _ = w.Write([]byte("Not found"))
 		}
 	}))
 }
@@ -180,14 +222,9 @@ func setupTestConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
-func TestPipeline_UpdateMetadata(t *testing.T) {
-	// Setup test server
-	server := setupTestServer()
-	defer server.Close()
-
+func setupTestPipeline(t *testing.T, server *httptest.Server, timeProvider utils.TimeProvider) (*Pipeline, func()) {
 	// Setup environment
 	os.Setenv("TIINGO_TOKEN", "test-token")
-	defer os.Unsetenv("TIINGO_TOKEN")
 
 	// Setup logger
 	var logBuffer bytes.Buffer
@@ -197,13 +234,30 @@ func TestPipeline_UpdateMetadata(t *testing.T) {
 	cfg := setupTestConfig(t)
 
 	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
+	pipeline, err := NewPipeline(cfg, logger, timeProvider)
 	assert.NoError(t, err)
-	defer pipeline.Close()
 
-	// Override the base URL to use our test server
+	// Override the base URL to use our test server and set the time provider
 	pipeline.TiingoClient.BaseURL = server.URL
 	pipeline.TiingoClient.InTest = true
+	pipeline.timeProvider = timeProvider
+
+	// Cleanup function
+	cleanup := func() {
+		pipeline.Close()
+		os.Unsetenv("TIINGO_TOKEN")
+	}
+
+	return pipeline, cleanup
+}
+
+func TestPipeline_UpdateMetadata(t *testing.T) {
+	// Setup test server
+	server := setupTestServer()
+	defer server.Close()
+
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
 	// Run the metadata update
 	count, err := pipeline.UpdateMetadata()
@@ -235,83 +289,149 @@ func TestPipeline_UpdateMetadata(t *testing.T) {
 	assert.Equal(t, []string{"California, USA"}, appleData["location"])
 }
 
+// MockTimeProvider implements TimeProvider for testing with fixed hour
+type MockTimeProvider struct {
+	hour int
+}
+
+func (m MockTimeProvider) Now() time.Time {
+	return time.Date(2024, 1, 1, m.hour, 0, 0, 0, time.UTC)
+}
+
 func TestPipeline_DailyFundamentals(t *testing.T) {
-	// Setup test server
-	server := setupTestServer()
-	defer server.Close()
+	tests := []struct {
+		name        string
+		tickers     []string
+		half        bool
+		hour        int
+		wantCount   int
+		wantTickers []string
+	}{
+		{
+			name:        "specific tickers - no half selection",
+			tickers:     []string{"AAPL", "MSFT"},
+			half:        false,
+			hour:        14,
+			wantCount:   2,
+			wantTickers: []string{"AAPL", "MSFT"},
+		},
+		{
+			name:        "even hour gets first half",
+			tickers:     nil,
+			half:        true,
+			hour:        14, // 2pm
+			wantCount:   1,
+			wantTickers: []string{"AAPL"}, // First half of ["AAPL", "MSFT", "TSLA"]
+		},
+		{
+			name:        "odd hour gets second half",
+			tickers:     nil,
+			half:        true,
+			hour:        15, // 3pm
+			wantCount:   2,
+			wantTickers: []string{"MSFT", "TSLA"}, // Second half of ["AAPL", "MSFT", "TSLA"]
+		},
+	}
 
-	// Setup environment
-	os.Setenv("TIINGO_TOKEN", "test-token")
-	defer os.Unsetenv("TIINGO_TOKEN")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test server
+			server := setupTestServer()
+			defer server.Close()
 
-	// Setup logger
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+			// Setup pipeline with mock time provider
+			pipeline, cleanup := setupTestPipeline(t, server, &MockTimeProvider{hour: tt.hour})
+			defer cleanup()
 
-	// Setup config
-	cfg := setupTestConfig(t)
+			// First populate meta table if we're testing automatic ticker selection
+			if tt.tickers == nil {
+				_, err := pipeline.UpdateMetadata()
+				assert.NoError(t, err)
+			}
 
-	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
-	assert.NoError(t, err)
-	defer pipeline.Close()
+			// Run the test
+			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
 
-	// Override the base URL to use our test server
-	pipeline.TiingoClient.BaseURL = server.URL
-	pipeline.TiingoClient.InTest = true
+			// Verify the correct tickers were processed
+			rows, err := pipeline.DuckDB.GetQueryResults(`
+                SELECT DISTINCT ticker
+                FROM fundamentals.daily
+                ORDER BY ticker;
+            `)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantTickers, rows["ticker"])
+		})
+	}
+}
 
-	// Test with specific tickers
-	tickers := []string{"AAPL", "MSFT"}
-	count, err := pipeline.DailyFundamentals(tickers)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, count, "Expected to process 2 tickers")
+func TestPipeline_Statements(t *testing.T) {
+	tests := []struct {
+		name        string
+		tickers     []string
+		half        bool
+		hour        int
+		wantCount   int
+		wantTickers []string
+	}{
+		{
+			name:        "specific tickers - no half selection",
+			tickers:     []string{"MSFT"},
+			half:        false,
+			hour:        14,
+			wantCount:   1,
+			wantTickers: []string{"MSFT"},
+		},
+		{
+			name:        "even hour gets first half",
+			tickers:     nil,
+			half:        true,
+			hour:        14, // 2pm
+			wantCount:   1,
+			wantTickers: []string{"AAPL"}, // First half of ["AAPL", "MSFT", "TSLA"]
+		},
+		{
+			name:        "odd hour gets second half",
+			tickers:     nil,
+			half:        true,
+			hour:        15, // 3pm
+			wantCount:   2,
+			wantTickers: []string{"MSFT", "TSLA"}, // Second half of ["AAPL", "MSFT", "TSLA"]
+		},
+	}
 
-	// Verify the data in DuckDB
-	// First verify total count
-	rowsTotal, err := pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM fundamentals.daily;")
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"6"}, rowsTotal["count"], "Expected 6 total rows in fundamentals.daily")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test server
+			server := setupTestServer()
+			defer server.Close()
 
-	// Verify specific metrics for AAPL on a specific date
-	appleMetrics, err := pipeline.DuckDB.GetQueryResults(`
-		SELECT
-			cast(round(marketCap, 1) as varchar) as marketCap,
-			cast(round(peRatio, 1) as varchar) as peRatio,
-			cast(round(pbRatio, 1) as varchar) as pbRatio,
-			cast(round(trailingPEG1Y, 1) as varchar) as trailingPEG1Y
-		FROM fundamentals.daily
-		WHERE ticker = 'AAPL' AND date = '2024-01-01';
-	`)
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"2500000000000.0"}, appleMetrics["marketCap"])
-	assert.Equal(t, []string{"25.5"}, appleMetrics["peRatio"])
-	assert.Equal(t, []string{"12.3"}, appleMetrics["pbRatio"])
-	assert.Equal(t, []string{"1.5"}, appleMetrics["trailingPEG1Y"])
+			// Setup pipeline with mock time provider
+			pipeline, cleanup := setupTestPipeline(t, server, &MockTimeProvider{hour: tt.hour})
+			defer cleanup()
 
-	// Verify specific metrics for MSFT on a specific date
-	msftMetrics, err := pipeline.DuckDB.GetQueryResults(`
-		SELECT
-			cast(round(marketCap, 1) as varchar) as marketCap,
-			cast(round(peRatio, 1) as varchar) as peRatio,
-			cast(round(pbRatio, 1) as varchar) as pbRatio,
-			cast(round(trailingPEG1Y, 1) as varchar) as trailingPEG1Y
-		FROM fundamentals.daily
-		WHERE ticker = 'MSFT' AND date = '2024-01-01';
-	`)
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"3000000000000.0"}, msftMetrics["marketCap"])
-	assert.Equal(t, []string{"32.5"}, msftMetrics["peRatio"])
-	assert.Equal(t, []string{"15.8"}, msftMetrics["pbRatio"])
-	assert.Equal(t, []string{"1.8"}, msftMetrics["trailingPEG1Y"])
+			// First populate meta table if we're testing automatic ticker selection
+			if tt.tickers == nil {
+				_, err := pipeline.UpdateMetadata()
+				assert.NoError(t, err)
+			}
 
-	// Test automatic ticker selection when no tickers provided
-	// First populate the fundamentals.meta table
-	_, err = pipeline.UpdateMetadata()
-	assert.NoError(t, err)
+			// Run the test
+			count, err := pipeline.Statements(tt.tickers, tt.half)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
 
-	count, err = pipeline.DailyFundamentals(nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 3, count, "Expected to process 3 tickers from fundamentals.selected_fundamentals")
+			// Verify the correct tickers were processed
+			rows, err := pipeline.DuckDB.GetQueryResults(`
+                SELECT DISTINCT ticker
+                FROM fundamentals.statements
+                ORDER BY ticker;
+            `)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantTickers, rows["ticker"])
+		})
+	}
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
@@ -338,8 +458,12 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 	// Setup config
 	cfg := setupTestConfig(t)
 
+	// TODO: the below should be refactored to this:
+	// pipeline, cleanup := setupTestPipeline(t, server, nil)
+	// defer cleanup()
+
 	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
+	pipeline, err := NewPipeline(cfg, logger, nil)
 	assert.NoError(t, err)
 	defer pipeline.Close()
 

@@ -14,6 +14,7 @@ duckdb:
     - "./sql/table__supported_tickers.sql"
     - "./sql/table__fundamentals_meta.sql"
     - "./sql/table__fundamentals_daily.sql"
+    - "./sql/table__fundamentals_statements.sql"
     - "./sql/view__selected_us_tickers.sql"
     - "./sql/view__selected_last_trading_day.sql"
     - "./sql/view__selected_fundamentals.sql"
@@ -37,6 +38,9 @@ tiingo:
         permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,
         sicSector,sicIndustry,reportingCurrency,location,companyWebsite,
         secFilingWebsite,statementLastUpdated,dailyLastUpdated
+    statements:
+      format: csv
+      start_date: "2024-01-01"
 
 
 

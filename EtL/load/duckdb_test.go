@@ -31,7 +31,6 @@ func TestNewDuckDB(t *testing.T) {
 	assert.NotNil(t, db.DB)
 }
 
-
 func TestLoadCSVWithQuery(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
