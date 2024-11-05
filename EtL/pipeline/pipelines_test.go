@@ -253,25 +253,8 @@ func TestPipeline_UpdateMetadata(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// Setup environment
-	os.Setenv("TIINGO_TOKEN", "test-token")
-	defer os.Unsetenv("TIINGO_TOKEN")
-
-	// Setup logger
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
-
-	// Setup config
-	cfg := setupTestConfig(t)
-
-	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
-	assert.NoError(t, err)
-	defer pipeline.Close()
-
-	// Override the base URL to use our test server
-	pipeline.TiingoClient.BaseURL = server.URL
-	pipeline.TiingoClient.InTest = true
+	pipeline, cleanup := setupTestPipeline(t, server)
+	defer cleanup()
 
 	// Run the metadata update
 	count, err := pipeline.UpdateMetadata()
@@ -419,8 +402,8 @@ func TestPipeline_Statements(t *testing.T) {
 
             // Verify total number of rows in the statements table
             rowCount, err := pipeline.DuckDB.GetQueryResults(fmt.Sprintf(`
-                SELECT count(*) as count 
-                FROM fundamentals.statements 
+                SELECT count(*) as count
+                FROM fundamentals.statements
                 WHERE ticker = '%s';
             `, tt.tickers[0]))
             assert.NoError(t, err)
