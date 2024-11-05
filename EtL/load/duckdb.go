@@ -170,13 +170,16 @@ func (db *DuckDB) LoadCSV(csv []byte, table string, insert bool) error {
 	return nil
 }
 
+// LoadTmpFile loads a temporary file into a table in DuckDB
+// If insert is true, 'insert or replace' semantics are used,
+// else the write-truncate semantics are used.
 func (db *DuckDB) LoadTmpFile(tmpFile *os.File, table string, insert bool) error {
 	// Use the COPY statement or INSERT OR REPLACE to read the data from the temporary file into DuckDB
 	var query string
 	if insert {
 		query = fmt.Sprintf("INSERT OR REPLACE INTO %s SELECT * FROM read_csv('%s', delim=',', quote='\"', escape='\"', header=true);", table, tmpFile.Name())
 	} else {
-		query = fmt.Sprintf("COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER);", table, tmpFile.Name())
+		query = fmt.Sprintf("TRUNCATE TABLE %s; COPY %s FROM '%s' (FORMAT CSV, DELIMITER ',', QUOTE '\"', ESCAPE '\"', HEADER);", table, table, tmpFile.Name())
 	}
 
 	db.Logger.Debug("Executing DuckDB query", "query", query)
@@ -226,7 +229,6 @@ func (db *DuckDB) RunQuery(query string) error {
 	}
 	return nil
 }
-
 
 func (db *DuckDB) RunQueryFile(path string) error {
 	query, err := readQuery(path)

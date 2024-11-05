@@ -108,7 +108,7 @@ edit-format: diff
 #max-chat-history-tokens: xxx
 
 ## Specify the .env file to load (default: .env in git root)
-#env-file: .env
+env-file: .env
 
 #################
 # Cache Settings:
@@ -117,7 +117,7 @@ edit-format: diff
 cache-prompts: true
 
 ## Number of times to ping at 5min intervals to keep prompt cache warm (default: 0)
-cache-keepalive-pings: 4 # 4*5 = 20 minutes warm cache
+cache-keepalive-pings: 30 # 30*5 = 150 minutes warm cache
 
 ###################
 # Repomap Settings:
@@ -207,10 +207,11 @@ gitignore: true
 aiderignore: .aiderignore
 
 ## Only consider files in the current subtree of the git repository
+### NOTE: If you need to enable more than 1 dir/product in a monorepo, use .aiderignore instead
 subtree-only: false
 
 ## Enable/disable auto commit of LLM changes (default: True)
-auto-commits: true
+auto-commits: false
 
 ## Enable/disable commits when repo is found dirty (default: True)
 #dirty-commits: true
@@ -257,10 +258,10 @@ auto-commits: true
 #auto-lint: true
 
 ## Specify command to run tests
-#test-cmd: xxx
+# test-cmd: cd EtL/pipeline && go test -v .
 
 ## Enable/disable automatic testing after changes (default: False)
-#auto-test: false
+# auto-test: true
 
 ## Run tests and fix problems found
 #test: false
@@ -279,6 +280,10 @@ auto-commits: true
 ## specify a read-only file (can be used multiple times)
 read:
   - CONVENTIONS.md
+  - sql/
+  - EtL/pipeline/pipelines.go
+  - EtL/extract/fetch.go
+  - EtL/extract/fetch_test.go
 
 ## Use VI editing mode in the terminal (default: False)
 #vim: false

@@ -5,16 +5,18 @@ extract:
     retry_max: 5
 
 duckdb:
-  append_table: daily_adjusted
+  append_table: daily_adjusted # TODO: remove this. 1. it should not be here, 2. it doesn't seem to be used
   conn_init_fn_queries:
     # - "../sql/db__stage.sql"
-    - "../sql/schemas.sql"
-    - "../sql/table__last_trading_day.sql"
-    - "../sql/table__daily_adjusted.sql"
-    - "../sql/table__supported_tickers.sql"
-    - "../sql/table__fundamentals_meta.sql"
-    - "../sql/view__selected_us_tickers.sql"
-    - "../sql/view__selected_last_trading_day.sql"
+    - "./sql/schemas.sql"
+    - "./sql/table__last_trading_day.sql"
+    - "./sql/table__daily_adjusted.sql"
+    - "./sql/table__supported_tickers.sql"
+    - "./sql/table__fundamentals_meta.sql"
+    - "./sql/table__fundamentals_daily.sql"
+    - "./sql/view__selected_us_tickers.sql"
+    - "./sql/view__selected_last_trading_day.sql"
+    - "./sql/view__selected_fundamentals.sql"
 
 tiingo:
   eod:
@@ -24,13 +26,17 @@ tiingo:
   fundamentals:
     daily:
       format: csv
-      start_date: "1995-01-01"
-      columns: "date,close,adjClose,adjVolume"
+      start_date: "today-168h"
+      ## OBS: even though the free text parf oof the docs for 2.6.4 Daily Data says columns param
+      ## is supported, the request definition for the endpoint does not include it. So, it seems
+      ## it is not supported.
+      # columns: "date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y"
     meta:
       format: csv
       columns: >-
         permaTicker,ticker,name,isActive,isADR,sector,industry,sicCode,
         sicSector,sicIndustry,reportingCurrency,location,companyWebsite,
         secFilingWebsite,statementLastUpdated,dailyLastUpdated
+
 
 

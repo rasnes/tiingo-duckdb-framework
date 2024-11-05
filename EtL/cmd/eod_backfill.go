@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
-	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/pipeline"
 	"github.com/spf13/cobra"
 )
@@ -21,19 +19,14 @@ func newBackfillCmd() *cobra.Command {
 				return err
 			}
 
-			db, err := load.NewDuckDB(cfg, log)
+			pipeline, err := pipeline.NewPipeline(cfg, log)
 			if err != nil {
-				return fmt.Errorf("error creating DB database: %w", err)
+				return fmt.Errorf("error creating pipeline: %w", err)
 			}
-			defer db.Close()
-
-			httpClient, err := extract.NewTiingoClient(cfg, log)
-			if err != nil {
-				return fmt.Errorf("error creating HTTP client: %w", err)
-			}
+			defer pipeline.Close()
 
 			tickers := strings.Split(args[0], ",") // Assuming comma-separated tickers
-			nSuccess, err := pipeline.BackfillEndOfDay(tickers, httpClient, log, db)
+			nSuccess, err := pipeline.BackfillEndOfDay(tickers)
 			if err != nil {
 				return fmt.Errorf("error backfilling tickers: %w", err)
 			}

@@ -49,3 +49,5 @@ venv.bak/
 # Build tools
 .aider*
 .sesskey
+sonnet
+

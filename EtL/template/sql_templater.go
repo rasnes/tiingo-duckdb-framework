@@ -7,8 +7,6 @@ import (
 	"text/template"
 )
 
-// TODO: add unit tests
-
 func ExecuteSqlTemplate(templatePath string, params map[string]any) (string, error) {
 	// Read the template file
 	content, err := os.ReadFile(templatePath)

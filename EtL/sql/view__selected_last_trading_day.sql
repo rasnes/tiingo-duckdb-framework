@@ -8,6 +8,7 @@ create or replace view selected_last_trading_day as (
         splitFactor,
         divCash
     from last_trading_day
-    where ticker in (select lower(ticker) from selected_us_tickers)
+    semi join selected_us_tickers
+        on lower(last_trading_day.ticker) = lower(selected_us_tickers.ticker)
     qualify row_number() over (partition by ticker order by divCash desc) = 1
 );

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
@@ -17,6 +19,8 @@ type TiingoClient struct {
 	Logger       *slog.Logger
 	TiingoConfig *config.TiingoConfig
 	tiingoToken  string
+	BaseURL      string
+	InTest       bool
 }
 
 func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient, error) {
@@ -30,6 +34,7 @@ func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient,
 		Logger:       logger,
 		TiingoConfig: &config.Tiingo,
 		tiingoToken:  tiingoToken,
+		BaseURL:      "https://api.tiingo.com",
 	}
 
 	client.HTTPClient.RetryWaitMin = config.Extract.Backoff.RetryWaitMin
@@ -42,7 +47,21 @@ func NewTiingoClient(config *config.Config, logger *slog.Logger) (*TiingoClient,
 
 // GetSupportedTickers fetches the supported tickers from the Tiingo API and returns the zip file downloaded
 func (c *TiingoClient) GetSupportedTickers() ([]byte, error) {
-	url := "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+	var baseURL string
+	if !c.InTest {
+		baseURL = "https://apimedia.tiingo.com"
+	} else {
+		baseURL = c.BaseURL
+	}
+
+	url, err := c.addTiingoConfigToURL(
+		c.TiingoConfig.Eod,
+		fmt.Sprintf("%s/docs/tiingo/daily/supported_tickers.zip", baseURL),
+		false,
+	)
+	if err != nil {
+		return nil, err
+	}
 	return c.FetchData(url, "supported_tickers.zip")
 }
 
@@ -50,7 +69,7 @@ func (c *TiingoClient) GetSupportedTickers() ([]byte, error) {
 func (c *TiingoClient) GetLastTradingDay() ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Eod,
-		"https://api.tiingo.com/tiingo/daily/prices",
+		fmt.Sprintf("%s/tiingo/daily/prices", c.BaseURL),
 		false,
 	)
 	if err != nil {
@@ -63,7 +82,7 @@ func (c *TiingoClient) GetLastTradingDay() ([]byte, error) {
 func (c *TiingoClient) GetHistory(ticker string) ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Eod,
-		fmt.Sprintf("https://api.tiingo.com/tiingo/daily/%s/prices", ticker),
+		fmt.Sprintf("%s/tiingo/daily/%s/prices", c.BaseURL, ticker),
 		true,
 	)
 	if err != nil {
@@ -77,7 +96,7 @@ func (c *TiingoClient) GetHistory(ticker string) ([]byte, error) {
 func (c *TiingoClient) GetStatements(ticker string) ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Fundamentals.Statements,
-		fmt.Sprintf("https://api.tiingo.com/tiingo/fundamentals/%s/statements", ticker),
+		fmt.Sprintf("%s/tiingo/fundamentals/%s/statements", c.BaseURL, ticker),
 		true,
 	)
 	if err != nil {
@@ -91,7 +110,7 @@ func (c *TiingoClient) GetStatements(ticker string) ([]byte, error) {
 // If `tickers` is zero value, it fetches the meta information for all tickers.
 // https://www.tiingo.com/documentation/fundamentals section 2.6.5
 func (c *TiingoClient) GetMeta(tickers string) ([]byte, error) {
-	metaURL := "https://api.tiingo.com/tiingo/fundamentals/meta"
+	metaURL := fmt.Sprintf("%s/tiingo/fundamentals/meta", c.BaseURL)
 	if tickers != "" {
 		parsedURL, _ := url.Parse(metaURL)
 		query := parsedURL.Query()
@@ -116,12 +135,13 @@ func (c *TiingoClient) GetMeta(tickers string) ([]byte, error) {
 func (c *TiingoClient) GetDailyFundamentals(ticker string) ([]byte, error) {
 	url, err := c.addTiingoConfigToURL(
 		c.TiingoConfig.Fundamentals.Daily,
-		fmt.Sprintf("https://api.tiingo.com/tiingo/fundamentals/%s/daily", ticker),
+		fmt.Sprintf("%s/tiingo/fundamentals/%s/daily", c.BaseURL, ticker),
 		true,
 	)
 	if err != nil {
 		return nil, err
 	}
+
 	return c.FetchData(url, fmt.Sprintf("daily fundamentals for ticker %s", ticker))
 }
 
@@ -156,7 +176,17 @@ func (c *TiingoClient) addTiingoConfigToURL(apiConfig config.TiingoAPIConfig, ra
 		if apiConfig.StartDate == "" {
 			return "", fmt.Errorf("startDate is required for historical data")
 		}
-		query.Set("startDate", apiConfig.StartDate)
+		var startDate string
+		if strings.Contains(apiConfig.StartDate, "today") {
+			startDate, err = parseTodayString(apiConfig.StartDate)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse startDate: %w", err)
+			}
+		} else {
+			startDate = apiConfig.StartDate
+		}
+
+		query.Set("startDate", startDate)
 	}
 	parsedURL.RawQuery = query.Encode()
 
@@ -177,4 +207,41 @@ func (c *TiingoClient) get(url string) (body []byte, resp *http.Response, err er
 	}
 
 	return body, resp, nil
+}
+
+// parseTodayString converts a string in the format "today" or "today-<duration>" into an ISO 8601 date string.
+// The duration part supports any valid time.ParseDuration format (e.g., "24h", "7h30m", "1h30m10s").
+//
+// Examples:
+//   - "today" returns current date
+//   - "today-24h" returns yesterday's date
+//   - "today-168h" returns date from 7 days ago
+//   - "today-30m" returns today's date (as it's less than a day)
+//
+// Returns:
+//   - string: ISO 8601 formatted date (YYYY-MM-DD)
+//   - error: if the input format is invalid or duration parsing fails
+func parseTodayString(todayString string) (string, error) {
+	// Handle the "today" case
+	if todayString == "today" {
+		return time.Now().Format("2006-01-02"), nil
+	}
+
+	// Split the string by "-"
+	parts := strings.Split(todayString, "-")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid today string format: %s", todayString)
+	}
+
+	if parts[0] != "today" {
+		return "", fmt.Errorf("string must start with 'today': %s", todayString)
+	}
+
+	duration, err := time.ParseDuration(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("failed to parse duration: %w", err)
+	}
+
+	today := time.Now().Add(-duration)
+	return today.Format("2006-01-02"), nil
 }
