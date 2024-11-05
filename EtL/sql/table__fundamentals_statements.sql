@@ -7,5 +7,6 @@ create table if not exists fundamentals.statements (
   statementType VARCHAR,
   dataCode VARCHAR,
   value DECIMAL,
-  primary key (date, year, quarter, statementType, dataCode)
+  ticker VARCHAR,
+  primary key (date, year, quarter, statementType, dataCode, ticker)
 );
