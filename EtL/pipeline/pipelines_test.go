@@ -145,6 +145,16 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-06-30,2024,3,incomeStatement,revenue,100000000000.0
 2024-06-30,2024,3,cashFlow,freeCashFlow,24000000000.0`
 			w.Write([]byte(csvContent))
+		case "/tiingo/fundamentals/TSLA/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `date,year,quarter,statementType,dataCode,value
+2024-09-28,2024,4,balanceSheet,totalAssets,120000000000.0
+2024-09-28,2024,4,incomeStatement,revenue,23000000000.0
+2024-09-28,2024,4,cashFlow,freeCashFlow,8000000000.0
+2024-06-30,2024,3,balanceSheet,totalAssets,115000000000.0
+2024-06-30,2024,3,incomeStatement,revenue,21000000000.0
+2024-06-30,2024,3,cashFlow,freeCashFlow,7500000000.0`
+			w.Write([]byte(csvContent))
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -367,50 +377,71 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 }
 
 func TestPipeline_Statements(t *testing.T) {
-	// Setup test server
-	server := setupTestServer()
-	defer server.Close()
+    tests := []struct {
+        name        string
+        tickers     []string
+        half        bool
+        hour        int
+        wantCount   int
+        wantTickers []string
+    }{
+        {
+            name:        "specific tickers - no half selection",
+            tickers:     []string{"MSFT"},
+            half:        false,
+            hour:        14,
+            wantCount:   1,
+            wantTickers: []string{"MSFT"},
+        },
+        {
+            name:        "even hour gets first half",
+            tickers:     nil,
+            half:        true,
+            hour:        14, // 2pm
+            wantCount:   1,
+            wantTickers: []string{"AAPL"}, // First half of ["AAPL", "MSFT", "TSLA"]
+        },
+        {
+            name:        "odd hour gets second half",
+            tickers:     nil,
+            half:        true,
+            hour:        15, // 3pm
+            wantCount:   2,
+            wantTickers: []string{"MSFT", "TSLA"}, // Second half of ["AAPL", "MSFT", "TSLA"]
+        },
+    }
 
-	// Setup pipeline
-	pipeline, cleanup := setupTestPipeline(t, server, nil)
-	defer cleanup()
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Setup test server
+            server := setupTestServer()
+            defer server.Close()
 
-	tests := []struct {
-		name      string
-		tickers   []string
-		wantCount int
-		wantRows  int
-	}{
-		{
-			name:      "fetch statements for MSFT",
-			tickers:   []string{"MSFT"},
-			wantCount: 1,
-			wantRows:  6, // Based on the mock data in setupTestServer
-		},
-		{
-			name:      "fetch statements for AAPL",
-			tickers:   []string{"AAPL"},
-			wantCount: 1,
-			wantRows:  14, // 7 metrics for each of the 2 quarters
-		},
-	}
+            // Setup pipeline with mock time provider
+            pipeline, cleanup := setupTestPipeline(t, server, &MockTimeProvider{hour: tt.hour})
+            defer cleanup()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			count, err := pipeline.Statements(tt.tickers)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantCount, count)
+            // First populate meta table if we're testing automatic ticker selection
+            if tt.tickers == nil {
+                _, err := pipeline.UpdateMetadata()
+                assert.NoError(t, err)
+            }
 
-			// Verify total number of rows in the statements table
-			rowCount, err := pipeline.DuckDB.GetQueryResults(fmt.Sprintf(`
-                SELECT count(*) as count
+            // Run the test
+            count, err := pipeline.Statements(tt.tickers, tt.half)
+            assert.NoError(t, err)
+            assert.Equal(t, tt.wantCount, count)
+
+            // Verify the correct tickers were processed
+            rows, err := pipeline.DuckDB.GetQueryResults(`
+                SELECT DISTINCT ticker
                 FROM fundamentals.statements
-                WHERE ticker = '%s';
-            `, tt.tickers[0]))
-			assert.NoError(t, err)
-			assert.Equal(t, []string{fmt.Sprintf("%d", tt.wantRows)}, rowCount["count"])
-		})
-	}
+                ORDER BY ticker;
+            `)
+            assert.NoError(t, err)
+            assert.Equal(t, tt.wantTickers, rows["ticker"])
+        })
+    }
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
