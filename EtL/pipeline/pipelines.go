@@ -49,7 +49,6 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 		return 0, fmt.Errorf("error unzipping supported_tickers.csv.zip: %v", err)
 	}
 
-	fmt.Println("csvSupportedTickers", string(csvSupportedTickers))
 	if err := p.DuckDB.LoadCSV(csvSupportedTickers, "supported_tickers", false); err != nil {
 		return 0, fmt.Errorf("error loading supported_tickers.csv into DB: %v", err)
 	}
@@ -59,12 +58,11 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 		return 0, fmt.Errorf("error getting ticker data from last trading day: %v", err)
 	}
 
-	fmt.Println("lastTradingDay", string(lastTradingDay))
 	if err := p.DuckDB.LoadCSV(lastTradingDay, "last_trading_day", false); err != nil {
 		return 0, fmt.Errorf("error loading last_trading_day into DB: %v", err)
 	}
 
-	if err := p.DuckDB.RunQueryFile("../sql/insert__last_trading_day.sql"); err != nil {
+	if err := p.DuckDB.RunQueryFile("../sql/insert__daily_adjusted.sql"); err != nil {
 		return 0, fmt.Errorf("error inserting last trading day into daily_adjusted: %v", err)
 	}
 
