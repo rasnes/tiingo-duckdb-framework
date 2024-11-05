@@ -20,7 +20,8 @@ type Pipeline struct {
 	DuckDB       *load.DuckDB
 	TiingoClient *extract.TiingoClient
 	Logger       *slog.Logger
-	sqlDir       string // Add this field
+	sqlDir       string
+	timeProvider utils.TimeProvider
 }
 
 func NewPipeline(config *config.Config, logger *slog.Logger) (*Pipeline, error) {
