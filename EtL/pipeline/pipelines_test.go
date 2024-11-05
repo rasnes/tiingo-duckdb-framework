@@ -19,16 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// contains checks if a slice of strings contains a specific string
-func contains(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
-}
-
 func setupTestServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify token is present
