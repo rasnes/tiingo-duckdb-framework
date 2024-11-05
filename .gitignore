@@ -50,3 +50,4 @@ venv.bak/
 .aider*
 .sesskey
 sonnet
+.aider.conf.yml
