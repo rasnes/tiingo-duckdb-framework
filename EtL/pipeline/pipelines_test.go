@@ -17,6 +17,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// contains checks if a slice of strings contains a specific string
+func contains(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
 func setupTestServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify token is present
@@ -104,6 +114,36 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-03,1980000000000.0,2030000000000.0,20.3,10.7,1.18`
 			w.Write([]byte(csvContent))
 
+		case "/tiingo/fundamentals/AAPL/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `date,year,quarter,statementType,dataCode,value
+2024-09-28,2024,4,balanceSheet,totalAssets,364980000000.0
+2024-09-28,2024,4,balanceSheet,acctRec,66243000000.0
+2024-09-28,2024,4,incomeStatement,revenue,94930000000.0
+2024-09-28,2024,4,incomeStatement,netinc,14736000000.0
+2024-09-28,2024,4,cashFlow,freeCashFlow,23903000000.0
+2024-09-28,2024,4,cashFlow,capex,-2908000000.0
+2024-09-28,2024,4,overview,roa,0.270226599025453
+2024-06-30,2024,3,balanceSheet,totalAssets,355800000000.0
+2024-06-30,2024,3,balanceSheet,acctRec,64100000000.0
+2024-06-30,2024,3,incomeStatement,revenue,89100000000.0
+2024-06-30,2024,3,incomeStatement,netinc,13800000000.0
+2024-06-30,2024,3,cashFlow,freeCashFlow,22500000000.0
+2024-06-30,2024,3,cashFlow,capex,-2700000000.0
+2024-06-30,2024,3,overview,roa,0.265`
+			w.Write([]byte(csvContent))
+
+		case "/tiingo/fundamentals/MSFT/statements":
+			w.Header().Set("Content-Type", "text/csv")
+			csvContent := `date,year,quarter,statementType,dataCode,value
+2024-09-28,2024,4,balanceSheet,totalAssets,450000000000.0
+2024-09-28,2024,4,incomeStatement,revenue,105000000000.0
+2024-09-28,2024,4,cashFlow,freeCashFlow,25000000000.0
+2024-06-30,2024,3,balanceSheet,totalAssets,440000000000.0
+2024-06-30,2024,3,incomeStatement,revenue,100000000000.0
+2024-06-30,2024,3,cashFlow,freeCashFlow,24000000000.0`
+			w.Write([]byte(csvContent))
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not found"))
@@ -178,6 +218,34 @@ func setupTestConfig(t *testing.T) *config.Config {
 	cfg.DuckDB.ConnInitFnQueries = append(updatedQueries, testSQLFiles...)
 
 	return cfg
+}
+
+func setupTestPipeline(t *testing.T, server *httptest.Server) (*Pipeline, func()) {
+	// Setup environment
+	os.Setenv("TIINGO_TOKEN", "test-token")
+
+	// Setup logger
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
+
+	// Setup config
+	cfg := setupTestConfig(t)
+
+	// Create pipeline
+	pipeline, err := NewPipeline(cfg, logger)
+	assert.NoError(t, err)
+
+	// Override the base URL to use our test server
+	pipeline.TiingoClient.BaseURL = server.URL
+	pipeline.TiingoClient.InTest = true
+
+	// Cleanup function
+	cleanup := func() {
+		pipeline.Close()
+		os.Unsetenv("TIINGO_TOKEN")
+	}
+
+	return pipeline, cleanup
 }
 
 func TestPipeline_UpdateMetadata(t *testing.T) {
@@ -312,6 +380,64 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 	count, err = pipeline.DailyFundamentals(nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, count, "Expected to process 3 tickers from fundamentals.selected_fundamentals")
+}
+
+func TestPipeline_Statements(t *testing.T) {
+	// Setup test server
+	server := setupTestServer()
+	defer server.Close()
+
+	// Setup pipeline
+	pipeline, cleanup := setupTestPipeline(t, server)
+	defer cleanup()
+
+	tests := []struct {
+		name        string
+		tickers     []string
+		wantCount   int
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:      "fetch statements for MSFT",
+			tickers:   []string{"MSFT"},
+			wantCount: 1,
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			count, err := pipeline.Statements(tt.tickers)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
+
+			// Verify MSFT data
+			msftData, err := pipeline.DuckDB.GetQueryResults(`
+				SELECT
+					cast(round(value, 1) as varchar) as value,
+					statementType,
+					dataCode
+				FROM fundamentals.statements
+				WHERE ticker = 'MSFT'
+				AND date = '2024-09-28'
+				ORDER BY value DESC;
+			`)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"450000000000.0", "105000000000.0", "25000000000.0"}, msftData["value"])
+			assert.Equal(t, []string{"balanceSheet", "incomeStatement", "cashFlow"}, msftData["statementType"])
+			assert.Equal(t, []string{"totalAssets", "revenue", "freeCashFlow"}, msftData["dataCode"])
+		})
+	}
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
