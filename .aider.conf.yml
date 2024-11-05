@@ -117,7 +117,7 @@ env-file: .env
 cache-prompts: true
 
 ## Number of times to ping at 5min intervals to keep prompt cache warm (default: 0)
-cache-keepalive-pings: 4 # 4*5 = 20 minutes warm cache
+cache-keepalive-pings: 30 # 30*5 = 150 minutes warm cache
 
 ###################
 # Repomap Settings:

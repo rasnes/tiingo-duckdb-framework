@@ -99,9 +99,53 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 	return len(tickers), nil
 }
 
-func (p *Pipeline) DailyFundamentals() (int, error) {
-	// TODO: Implement daily fundamentals pipeline
-	return 0, nil
+func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
+	if len(tickers) == 0 {
+		query := "select ticker from selected_fundamentals"
+		if os.Getenv("APP_ENV") != "prod" {
+			query += " using sample 20"
+		}
+
+		res, err := p.DuckDB.GetQueryResults(query)
+		if err != nil {
+			return 0, fmt.Errorf("error getting selected_fundamentals results: %w", err)
+		}
+
+		tickersFromQuery, ok := res["ticker"]
+		if !ok {
+			return 0, fmt.Errorf("ticker key not found in selected_fundamentals results")
+		}
+		if len(tickers) == 0 {
+			return 0, fmt.Errorf("no tickers found in selected_fundamentals results")
+		}
+
+		tickers = tickersFromQuery
+	}
+
+	csvs := make([][]byte, 0)
+	for _, ticker := range tickers {
+		daily, err := p.TiingoClient.GetDailyFundamentals(ticker)
+		if err != nil {
+			return 0, fmt.Errorf("error fetching daily fundamentals for ticker %s: %w", ticker, err)
+		}
+		csv, err := load.AddTickerColumn(daily, ticker)
+		if err != nil {
+			return 0, fmt.Errorf("error adding ticker column to daily fundamentals for ticker %s: %w", ticker, err)
+		}
+
+		csvs = append(csvs, csv)
+	}
+
+	finalCsv, err := load.ConcatCSVs(csvs)
+	if err != nil {
+		return 0, fmt.Errorf("error concatenating CSVs: %w", err)
+	}
+
+	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.daily", true); err != nil {
+		return 0, fmt.Errorf("error loading daily fundamentals to DB: %w", err)
+	}
+
+	return len(tickers), nil
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
