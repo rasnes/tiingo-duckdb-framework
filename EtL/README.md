@@ -9,10 +9,6 @@ I prefer to load and transform data with the ELT (Extract, Load, Transform) fram
 
 ## TODO
 
-- Fix failed tests.
-- Fix double logging for `go run main.go fundamentals metadata`
-- Create Taskfile
-  - For running linter, tests etc. on `main` PRs
 - Add docstrings to all functions and methods
   - Remove redundant explanatory strings by GhatGPT
 
@@ -31,12 +27,6 @@ I prefer to load and transform data with the ELT (Extract, Load, Transform) fram
   // Sound like 05:00 UTC, or something like that, is a good time.
 - Add backoff functionality for `md:` connections with DuckDB, in case of network failures?
   - Or make a decorator that wraps backoff on the entire pipeline? I kind of like that pattern.
-- Handle duplicates in insert__last_trading_day.
-  - {"time":"2024-05-20T22:45:03.880005+02:00","level":"ERROR","msg":"Error inserting last trading day into daily_adjusted: %v","!BADKEY":"failed to execute query: Invalid Input Error: ON CONFLICT DO UPDATE can not update the same row twice in the same command. Ensure that no rows proposed for insertion within the same command have duplicate constrained values"}
-  - It was a little suspicious that I got almost the exact same stocks for backfill on May 20 as May 19.
-    Does it mean that `adj`usting takes several days? Or that the API is slow to update? Or an inaccuracy?
-    UPDATE: ran ingest again the next morning, now the list of stocks to backfill had changed significantly. Seems like
-    the API is available again before all data is correct. Even more reason to wait a bit with making requests to that API.
 
 
 ## Extract
