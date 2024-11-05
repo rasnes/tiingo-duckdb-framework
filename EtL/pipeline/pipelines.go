@@ -192,8 +192,8 @@ func (p *Pipeline) Statements(tickers []string) (int, error) {
 		return 0, fmt.Errorf("error fetching statements: %w", err)
 	}
 
-	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.daily", true); err != nil {
-		return 0, fmt.Errorf("error loading daily fundamentals to DB: %w", err)
+	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.statements", true); err != nil {
+		return 0, fmt.Errorf("error loading statements to DB: %w", err)
 	}
 
 	return len(tickers), nil
