@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,10 +34,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          args: --version
 
       - name: Run CI checks
         working-directory: EtL
