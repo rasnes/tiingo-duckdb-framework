@@ -291,25 +291,9 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// Setup environment
-	os.Setenv("TIINGO_TOKEN", "test-token")
-	defer os.Unsetenv("TIINGO_TOKEN")
-
-	// Setup logger
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
-
-	// Setup config
-	cfg := setupTestConfig(t)
-
-	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger)
-	assert.NoError(t, err)
-	defer pipeline.Close()
-
-	// Override the base URL to use our test server
-	pipeline.TiingoClient.BaseURL = server.URL
-	pipeline.TiingoClient.InTest = true
+	// Setup pipeline with new helper function
+	pipeline, cleanup := setupTestPipeline(t, server)
+	defer cleanup()
 
 	// Test with specific tickers
 	tickers := []string{"AAPL", "MSFT"}
@@ -341,14 +325,14 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 
 	// Verify specific metrics for MSFT on a specific date
 	msftMetrics, err := pipeline.DuckDB.GetQueryResults(`
-		SELECT
-			cast(round(marketCap, 1) as varchar) as marketCap,
-			cast(round(peRatio, 1) as varchar) as peRatio,
-			cast(round(pbRatio, 1) as varchar) as pbRatio,
-			cast(round(trailingPEG1Y, 1) as varchar) as trailingPEG1Y
-		FROM fundamentals.daily
-		WHERE ticker = 'MSFT' AND date = '2024-01-01';
-	`)
+        SELECT
+            cast(round(marketCap, 1) as varchar) as marketCap,
+            cast(round(peRatio, 1) as varchar) as peRatio,
+            cast(round(pbRatio, 1) as varchar) as pbRatio,
+            cast(round(trailingPEG1Y, 1) as varchar) as trailingPEG1Y
+        FROM fundamentals.daily
+        WHERE ticker = 'MSFT' AND date = '2024-01-01';
+    `)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"3000000000000.0"}, msftMetrics["marketCap"])
 	assert.Equal(t, []string{"32.5"}, msftMetrics["peRatio"])
@@ -366,50 +350,50 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 }
 
 func TestPipeline_Statements(t *testing.T) {
-    // Setup test server
-    server := setupTestServer()
-    defer server.Close()
+	// Setup test server
+	server := setupTestServer()
+	defer server.Close()
 
-    // Setup pipeline
-    pipeline, cleanup := setupTestPipeline(t, server)
-    defer cleanup()
+	// Setup pipeline
+	pipeline, cleanup := setupTestPipeline(t, server)
+	defer cleanup()
 
-    tests := []struct {
-        name      string
-        tickers   []string
-        wantCount int
-        wantRows  int
-    }{
-        {
-            name:      "fetch statements for MSFT",
-            tickers:   []string{"MSFT"},
-            wantCount: 1,
-            wantRows:  6, // Based on the mock data in setupTestServer
-        },
-        {
-            name:      "fetch statements for AAPL",
-            tickers:   []string{"AAPL"},
-            wantCount: 1,
-            wantRows:  14, // 7 metrics for each of the 2 quarters
-        },
-    }
+	tests := []struct {
+		name      string
+		tickers   []string
+		wantCount int
+		wantRows  int
+	}{
+		{
+			name:      "fetch statements for MSFT",
+			tickers:   []string{"MSFT"},
+			wantCount: 1,
+			wantRows:  6, // Based on the mock data in setupTestServer
+		},
+		{
+			name:      "fetch statements for AAPL",
+			tickers:   []string{"AAPL"},
+			wantCount: 1,
+			wantRows:  14, // 7 metrics for each of the 2 quarters
+		},
+	}
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            count, err := pipeline.Statements(tt.tickers)
-            assert.NoError(t, err)
-            assert.Equal(t, tt.wantCount, count)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			count, err := pipeline.Statements(tt.tickers)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantCount, count)
 
-            // Verify total number of rows in the statements table
-            rowCount, err := pipeline.DuckDB.GetQueryResults(fmt.Sprintf(`
+			// Verify total number of rows in the statements table
+			rowCount, err := pipeline.DuckDB.GetQueryResults(fmt.Sprintf(`
                 SELECT count(*) as count
                 FROM fundamentals.statements
                 WHERE ticker = '%s';
             `, tt.tickers[0]))
-            assert.NoError(t, err)
-            assert.Equal(t, []string{fmt.Sprintf("%d", tt.wantRows)}, rowCount["count"])
-        })
-    }
+			assert.NoError(t, err)
+			assert.Equal(t, []string{fmt.Sprintf("%d", tt.wantRows)}, rowCount["count"])
+		})
+	}
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
