@@ -141,6 +141,7 @@ func (c *TiingoClient) GetDailyFundamentals(ticker string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return c.FetchData(url, fmt.Sprintf("daily fundamentals for ticker %s", ticker))
 }
 

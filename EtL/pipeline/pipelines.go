@@ -140,8 +140,10 @@ func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
 		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
 	}
 
-	// TODO: This part should probably have more tailored error handling
+	// TODO: This part should probably have more tailored error handlint
 	// Like some HTTP error codes should be ignored (I might not have access).
+	// BUT: it seems the API sends 400 Bad Request with body: None if no access,
+	// which is the same as if the request were incorrect. Not optimal.
 	csvs := make([][]byte, 0)
 	for _, ticker := range upperCaseTickers {
 		daily, err := p.TiingoClient.GetDailyFundamentals(ticker)
