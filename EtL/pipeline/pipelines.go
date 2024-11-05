@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
 )
@@ -94,8 +96,36 @@ func (p *Pipeline) DailyFundamentals() (int, error) {
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
-	// TODO: Implement metadata update pipeline
-	return 0, nil
+	// Get fundamentals metadata for all tickers from Tiingo API
+	metadata, err := p.TiingoClient.GetMeta("")
+	if err != nil {
+		return 0, fmt.Errorf("error fetching metadata from Tiingo: %w", err)
+	}
+
+	insertMetaFile := "../sql/insert__fundamentals_meta.sql"
+	templateContent, err := os.ReadFile(insertMetaFile)
+	if err != nil {
+		return 0, fmt.Errorf("error reading %s file: %w", insertMetaFile, err)
+	}
+
+	sqlParams := map[string]any{
+		"CsvFile": constants.TmpCSVFile,
+	}
+
+	// Load metadata into DuckDB
+	res, err := p.DuckDB.LoadCSVWithQuery(metadata, string(templateContent), sqlParams)
+	if err != nil {
+		return 0, fmt.Errorf("error loading metadata into DB: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("error getting rows affected: %w", err)
+	}
+
+	p.Logger.Info(fmt.Sprintf("Successfully updated metadata for %d tickers", rowsAffected))
+
+	return int(rowsAffected), nil
 }
 
 func (p *Pipeline) BackfillEndOfDay(tickers []string) (int, error) {
