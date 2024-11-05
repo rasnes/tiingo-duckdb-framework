@@ -141,7 +141,7 @@ func TestClient_FetchData(t *testing.T) {
 	// Mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test content"))
+		_, _ = w.Write([]byte("test content"))
 	}))
 	defer server.Close()
 

@@ -42,7 +42,7 @@ ETFGONE,NYSE,ETF,USD,2010-02-11,2010-01-01
 TSLA,NASDAQ,Stock,USD,2010-06-29,2024-01-01
 AMZN,NASDAQ,Stock,USD,1997-05-15,2024-01-01
 `
-			w.Write(createTestZip(csvContent))
+			_, _ = w.Write(createTestZip(csvContent))
 
 		case "/tiingo/daily/prices":
 			w.Header().Set("Content-Type", "text/csv")
@@ -52,7 +52,7 @@ msft,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 tsla,2024-01-01,191.5,192.0,190.5,191.0,1100000,191.5,192.0,190.5,191.0,1100000,0.0,0.9
 AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,0.1,1.0
 `
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/daily/AMZN/prices":
 			w.Header().Set("Content-Type", "text/csv")
@@ -61,7 +61,7 @@ AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 2023-01-01,130.5,130.5,1200000
 2021-01-01,191.5,191.5,1100000
 `
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/daily/TSLA/prices":
 			w.Header().Set("Content-Type", "text/csv")
@@ -70,7 +70,7 @@ AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,
 2023-01-01,300.2,300.2,900000
 2022-01-01,300.2,300.2,900000
 `
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/meta":
 			w.Header().Set("Content-Type", "text/csv")
@@ -80,7 +80,7 @@ US000000000042,msft,Microsoft Corporation,True,False,Technology,Software Develop
 US000000000091,tsla,Tesla Inc,True,False,Consumer Cyclical,Auto Manufacturers,3711,Manufacturing,Motor Vehicles,usd,"Texas, USA",http://www.tesla.com,https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001318605,2024-11-01 23:45:11,2024-11-05 02:05:44,199061
 CN000000000001,000001,Ping An Bank Co Ltd,True,False,Financial Services,Banks,6021,Finance,National Banks,cny,"Shenzhen, China",http://www.pingan.cn,http://www.szse.cn,2024-11-02 03:30:15,2024-11-05 04:22:18,199062
 CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Services,Banks,6021,Finance,National Banks,cny,"Shanghai, China",http://www.spdb.com.cn,http://www.sse.com.cn,2024-11-02 03:15:44,2024-11-05 04:18:55,199063`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/AAPL/daily":
 			w.Header().Set("Content-Type", "text/csv")
@@ -88,7 +88,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-01,2500000000000.0,2550000000000.0,25.5,12.3,1.5
 2024-01-02,2520000000000.0,2570000000000.0,25.7,12.4,1.52
 2024-01-03,2480000000000.0,2530000000000.0,25.3,12.2,1.48`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/MSFT/daily":
 			w.Header().Set("Content-Type", "text/csv")
@@ -96,7 +96,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-01,3000000000000.0,3050000000000.0,32.5,15.8,1.8
 2024-01-02,3020000000000.0,3070000000000.0,32.7,15.9,1.82
 2024-01-03,2980000000000.0,3030000000000.0,32.3,15.7,1.78`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/TSLA/daily":
 			w.Header().Set("Content-Type", "text/csv")
@@ -104,7 +104,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-01-01,2000000000000.0,2050000000000.0,20.5,10.8,1.2
 2024-01-02,2020000000000.0,2070000000000.0,20.7,10.9,1.22
 2024-01-03,1980000000000.0,2030000000000.0,20.3,10.7,1.18`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/AAPL/statements":
 			w.Header().Set("Content-Type", "text/csv")
@@ -123,7 +123,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-06-30,2024,3,cashFlow,freeCashFlow,22500000000.0
 2024-06-30,2024,3,cashFlow,capex,-2700000000.0
 2024-06-30,2024,3,overview,roa,0.265`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		case "/tiingo/fundamentals/MSFT/statements":
 			w.Header().Set("Content-Type", "text/csv")
@@ -134,7 +134,7 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-06-30,2024,3,balanceSheet,totalAssets,440000000000.0
 2024-06-30,2024,3,incomeStatement,revenue,100000000000.0
 2024-06-30,2024,3,cashFlow,freeCashFlow,24000000000.0`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 		case "/tiingo/fundamentals/TSLA/statements":
 			w.Header().Set("Content-Type", "text/csv")
 			csvContent := `date,year,quarter,statementType,dataCode,value
@@ -144,11 +144,11 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-06-30,2024,3,balanceSheet,totalAssets,115000000000.0
 2024-06-30,2024,3,incomeStatement,revenue,21000000000.0
 2024-06-30,2024,3,cashFlow,freeCashFlow,7500000000.0`
-			w.Write([]byte(csvContent))
+			_, _ = w.Write([]byte(csvContent))
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not found"))
+			_, _ = w.Write([]byte("Not found"))
 		}
 	}))
 }
