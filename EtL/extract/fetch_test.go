@@ -56,10 +56,10 @@ func setupTestServer() *httptest.Server {
 			w.Header().Set("Content-Type", "text/csv")
 			// Full response when no columns specified
 			if r.URL.Query().Get("columns") == "" {
-				w.Write([]byte("date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y\n2024-01-01,1000000000.0,1100000000.0,15.5,2.5,1.2"))
+				_, _ = w.Write([]byte("date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y\n2024-01-01,1000000000.0,1100000000.0,15.5,2.5,1.2"))
 			} else {
 				// Response when specific columns are requested
-				w.Write([]byte("date,marketCap,\n2024-01-01,1000000000.0"))
+				_, _ = w.Write([]byte("date,marketCap,\n2024-01-01,1000000000.0"))
 			}
 		case "/tiingo/fundamentals/INVALID/daily":
 			w.WriteHeader(http.StatusNotFound)
