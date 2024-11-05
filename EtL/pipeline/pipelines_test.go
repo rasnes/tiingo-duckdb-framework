@@ -31,7 +31,7 @@ func setupTestServer() *httptest.Server {
 			// Create a minimal zip file with supported tickers CSV
 			w.Header().Set("Content-Type", "application/zip")
 			csvContent := `ticker,exchange,assetType,priceCurrency,startDate,endDate
-AAPL,NASDAQ,Stock,USD,2018-08-22,2024-01-01
+aapl,NASDAQ,Stock,USD,2018-08-22,2024-01-01
 MSFT,NASDAQ,Stock,USD,1975-08-22,2024-01-01
 ENRON,NASDAQ,Stock,USD,1990-08-22,2005-01-01
 000001,SHE,Stock,CNY,2007-01-04,2024-01-01
@@ -48,7 +48,7 @@ AMZN,NASDAQ,Stock,USD,1997-05-15,2024-01-01
 aapl,2024-01-01,191.5,192.0,190.5,191.0,1100000,191.5,192.0,190.5,191.0,1100000,0.0,1.0
 msft,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,0.0,1.0
 tsla,2024-01-01,191.5,192.0,190.5,191.0,1100000,191.5,192.0,190.5,191.0,1100000,0.0,0.9
-amzn,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,0.1,1.0
+AMZN,2024-01-01,192.5,193.0,192.0,192.2,1200000,192.5,193.0,192.0,192.2,1200000,0.1,1.0
 `
 			w.Write([]byte(csvContent))
 
