@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/constants"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
+	"github.com/rasnes/tiingo-duckdb-framework/EtL/utils"
 )
 
 type Pipeline struct {
@@ -105,15 +107,15 @@ func (p *Pipeline) selectedFundamentals() ([]string, error) {
 		return nil, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
 	}
 
-	tickersFromQuery, ok := res["ticker"]
+	tickers, ok := res["ticker"]
 	if !ok {
 		return nil, fmt.Errorf("ticker key not found in fundamentals.selected_fundamentals results")
 	}
-	if len(tickersFromQuery) == 0 {
+	if len(tickers) == 0 {
 		return nil, fmt.Errorf("no tickers found in fundamentals.selected_fundamentals results")
 	}
 
-	return tickersFromQuery, nil
+	return tickers, nil
 }
 
 type csvPerTicker func(ticker string) (csv []byte, err error)
@@ -145,11 +147,19 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, error) {
 	return finalCsv, nil
 }
 
-func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
 	if len(tickers) == 0 {
 		tickersFromQuery, err := p.selectedFundamentals()
 		if err != nil {
 			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		}
+
+		// Below is a simple workaround for Tiingo's 10k requests per hour.
+		// In Github Actions two cron jobs are scheduled one hour apart, to make sure we can fetch data for all tickers.
+		// Take the modulo of the current hour to determine which half of the tickers to process.
+		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
+		if half {
+			tickersFromQuery = utils.HalfOfSlice(tickersFromQuery, time.Now().Hour()%2 == 0)
 		}
 
 		tickers = tickersFromQuery
@@ -172,11 +182,19 @@ func (p *Pipeline) DailyFundamentals(tickers []string) (int, error) {
 	return len(tickers), nil
 }
 
-func (p *Pipeline) Statements(tickers []string) (int, error) {
+func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
 	if len(tickers) == 0 {
 		tickersFromQuery, err := p.selectedFundamentals()
 		if err != nil {
 			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		}
+
+		// Below is a simple workaround for Tiingo's 10k requests per hour.
+		// In Github Actions two cron jobs are scheduled one hour apart, to make sure we can fetch data for all tickers.
+		// Take the modulo of the current hour to determine which half of the tickers to process.
+		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
+		if half {
+			tickersFromQuery = utils.HalfOfSlice(tickersFromQuery, time.Now().Hour()%2 == 0)
 		}
 
 		tickers = tickersFromQuery
