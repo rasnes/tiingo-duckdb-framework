@@ -119,6 +119,39 @@ tasks:
       - rclone copy dashboard/src/notebooks/ private_google_drive:pitchit/notebooks/ --include "*.ipynb"
 
   # Go
+  go:lint:
+    desc: run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  go:vet:
+    desc: run go vet
+    cmds:
+      - go vet ./...
+
+  go:fmt:
+    desc: check if code is formatted
+    cmds:
+      - |
+        if [ -n "$(gofmt -l .)" ]; then
+          echo "These files are not formatted:"
+          gofmt -l .
+          exit 1
+        fi
+
+  go:check:
+    desc: run all static code checks
+    cmds:
+      - task: go:fmt
+      - task: go:vet
+      - task: go:lint
+
+  go:ci:
+    desc: run all CI checks
+    cmds:
+      - task: go:check
+      - task: go:test
+
   go:run:
     desc: run main.go (with CGO enabled due to DuckDB API requirement)
     cmds:

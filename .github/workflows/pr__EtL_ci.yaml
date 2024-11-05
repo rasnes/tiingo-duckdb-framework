@@ -33,6 +33,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run tests
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --version
+
+      - name: Run CI checks
         working-directory: EtL
-        run: task go:test
+        run: task go:ci
