@@ -202,29 +202,18 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 		return 0, fmt.Errorf("error updating metadata: %v", err)
 	}
 
-	if len(tickers) == 0 {
-		tickersFromQuery, err := p.selectedFundamentals()
-		if err != nil {
-			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
-		}
-
-		// Below is a simple workaround for Tiingo's 10k requests per hour.
-		// In Github Actions two cron jobs are scheduled one hour apart, to make sure we can fetch data for all tickers.
-		// Take the modulo of the current hour to determine which half of the tickers to process.
-		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
-		if half {
-			tickersFromQuery = utils.HalfOfSlice(
-				tickersFromQuery,
-				p.timeProvider.Now().Hour()%2 == 0,
-			)
-		}
-
-		tickers = tickersFromQuery
+	// Handle half processing if requested
+	if half {
+		tickers = utils.HalfOfSlice(
+			tickers,
+			p.timeProvider.Now().Hour()%2 == 0,
+		)
 	}
 
-	upperCaseTickers := make([]string, 0)
-	for _, ticker := range tickers {
-		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
+	// Convert all tickers to uppercase for consistency
+	upperCaseTickers := make([]string, len(tickers))
+	for i, ticker := range tickers {
+		upperCaseTickers[i] = strings.ToUpper(ticker)
 	}
 
 	// Parse table name for logging
@@ -295,17 +284,45 @@ func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
 }
 
 func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
-	if len(skipTickers) > 0 {
-		tickers = filterOutSkippedTickers(tickers, skipTickers)
+	// Get the initial list of tickers
+	var initialTickers []string
+	if len(tickers) > 0 {
+		initialTickers = tickers
+	} else {
+		var err error
+		initialTickers, err = p.selectedFundamentals()
+		if err != nil {
+			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		}
 	}
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize)
+
+	// Filter out skipped tickers before any API calls
+	if len(skipTickers) > 0 {
+		initialTickers = filterOutSkippedTickers(initialTickers, skipTickers)
+	}
+
+	return p.fetchFundamentalsData(initialTickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize)
 }
 
 func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
-	if len(skipTickers) > 0 {
-		tickers = filterOutSkippedTickers(tickers, skipTickers)
+	// Get the initial list of tickers
+	var initialTickers []string
+	if len(tickers) > 0 {
+		initialTickers = tickers
+	} else {
+		var err error
+		initialTickers, err = p.selectedFundamentals()
+		if err != nil {
+			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		}
 	}
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize)
+
+	// Filter out skipped tickers before any API calls
+	if len(skipTickers) > 0 {
+		initialTickers = filterOutSkippedTickers(initialTickers, skipTickers)
+	}
+
+	return p.fetchFundamentalsData(initialTickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
