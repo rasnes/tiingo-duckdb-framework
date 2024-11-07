@@ -187,9 +187,18 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 }
 
 // fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
-// for the specified tickers into DuckDB. If batchSize > 0, processes tickers in batches
-// to manage memory usage.
-func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn csvPerTicker, tableName string, batchSize int) (int, error) {
+// for the specified tickers into DuckDB. If no tickers provided, uses selectedFundamentals().
+// If batchSize > 0, processes tickers in batches to manage memory usage.
+// Skips any tickers specified in skipTickers.
+func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn csvPerTicker, tableName string, batchSize int, skipTickers []string) (int, error) {
+	// Get tickers if none provided
+	if len(tickers) == 0 {
+		var err error
+		tickers, err = p.selectedFundamentals()
+		if err != nil {
+			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		}
+	}
 	// Make sure we have the latest supported tickers
 	err := p.supportedTickers()
 	if err != nil {
@@ -208,6 +217,11 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 			tickers,
 			p.timeProvider.Now().Hour()%2 == 0,
 		)
+	}
+
+	// Filter out skipped tickers before any processing
+	if len(skipTickers) > 0 {
+		tickers = filterOutSkippedTickers(tickers, skipTickers)
 	}
 
 	// Convert all tickers to uppercase for consistency
@@ -277,52 +291,18 @@ func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
 	for i, t := range skipTickers {
 		upperSkipTickers[i] = strings.ToUpper(t)
 	}
-	
+
 	return slices.DeleteFunc(tickers, func(ticker string) bool {
 		return slices.Contains(upperSkipTickers, strings.ToUpper(ticker))
 	})
 }
 
 func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
-	// Get the initial list of tickers
-	var initialTickers []string
-	if len(tickers) > 0 {
-		initialTickers = tickers
-	} else {
-		var err error
-		initialTickers, err = p.selectedFundamentals()
-		if err != nil {
-			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
-		}
-	}
-
-	// Filter out skipped tickers before any API calls
-	if len(skipTickers) > 0 {
-		initialTickers = filterOutSkippedTickers(initialTickers, skipTickers)
-	}
-
-	return p.fetchFundamentalsData(initialTickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize)
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize, skipTickers)
 }
 
 func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
-	// Get the initial list of tickers
-	var initialTickers []string
-	if len(tickers) > 0 {
-		initialTickers = tickers
-	} else {
-		var err error
-		initialTickers, err = p.selectedFundamentals()
-		if err != nil {
-			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
-		}
-	}
-
-	// Filter out skipped tickers before any API calls
-	if len(skipTickers) > 0 {
-		initialTickers = filterOutSkippedTickers(initialTickers, skipTickers)
-	}
-
-	return p.fetchFundamentalsData(initialTickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize)
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize, skipTickers)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
