@@ -99,7 +99,7 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 }
 
 func (p *Pipeline) selectedFundamentals() ([]string, error) {
-	query := "select ticker from fundamentals.selected_fundamentals order by ticker"
+	query := "select ticker from fundamentals.selected_fundamentals"
 	if !p.InTest && os.Getenv("APP_ENV") != "prod" {
 		query += " using sample 20"
 	}
@@ -157,8 +157,6 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 
 	return finalCsv, emptyResponses, nil
 }
-
-// TODO: refactor DailyFundamentals and Statements into a common function.
 
 // fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
 // for the specified tickers into DuckDB.
