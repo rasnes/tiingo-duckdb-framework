@@ -450,21 +450,9 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// Setup environment
-	os.Setenv("TIINGO_TOKEN", "test-token")
-	defer os.Unsetenv("TIINGO_TOKEN")
-
-	// Setup logger
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
-
-	// Setup config
-	cfg := setupTestConfig(t)
-
-	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger, nil)
-	assert.NoError(t, err)
-	defer pipeline.Close()
+	// Setup pipeline with no time provider (not needed for this test)
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
 	// Asserting that existing mock data in the database is as expected
 	rowsLastTradingDayPre, err := pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM main.last_trading_day;")
