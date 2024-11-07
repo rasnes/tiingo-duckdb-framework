@@ -160,8 +160,9 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 }
 
 // fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
-// for the specified tickers into DuckDB.
-func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn csvPerTicker, tableName string) (int, error) {
+// for the specified tickers into DuckDB. If batchSize > 0, processes tickers in batches
+// to manage memory usage.
+func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn csvPerTicker, tableName string, batchSize int) (int, error) {
 	// Make sure we have the latest supported tickers
 	err := p.supportedTickers()
 	if err != nil {
@@ -197,27 +198,61 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 	dataType := strings.TrimPrefix(tableName, "fundamentals.")
 	dataType = strings.ReplaceAll(dataType, "_", " ")
 
-	finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, fetchFn)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching %s data: %w", dataType, err)
+	totalEmptyResponses := make([]string, 0)
+	totalProcessed := 0
+
+	// Process all tickers at once if batchSize is 0
+	if batchSize == 0 {
+		finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, fetchFn)
+		if err != nil {
+			return 0, fmt.Errorf("error fetching %s data: %w", dataType, err)
+		}
+
+		if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+			return 0, fmt.Errorf("error loading %s data to DB: %w", dataType, err)
+		}
+		totalEmptyResponses = emptyResponses
+		totalProcessed = len(upperCaseTickers) - len(emptyResponses)
+	} else {
+		// Process tickers in batches
+		for i := 0; i < len(upperCaseTickers); i += batchSize {
+			end := i + batchSize
+			if end > len(upperCaseTickers) {
+				end = len(upperCaseTickers)
+			}
+			batch := upperCaseTickers[i:end]
+
+			finalCsv, emptyResponses, err := fetchCSVs(batch, fetchFn)
+			if err != nil {
+				return totalProcessed, fmt.Errorf("error fetching %s data for batch %d-%d: %w", dataType, i, end-1, err)
+			}
+
+			if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+				return totalProcessed, fmt.Errorf("error loading %s data to DB for batch %d-%d: %w", dataType, i, end-1, err)
+			}
+
+			totalEmptyResponses = append(totalEmptyResponses, emptyResponses...)
+			batchProcessed := len(batch) - len(emptyResponses)
+			totalProcessed += batchProcessed
+
+			p.Logger.Info(fmt.Sprintf("Successfully processed batch of %s data", dataType),
+				"batch", fmt.Sprintf("%d-%d", i, end-1),
+				"processed", batchProcessed,
+				"empty_responses", len(emptyResponses))
+		}
 	}
 
-	if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
-		return 0, fmt.Errorf("error loading %s data to DB: %w", dataType, err)
-	}
-
-	p.Logger.Info(fmt.Sprintf("Number of empty responses: %d", len(emptyResponses)))
-	nSuccess := len(tickers) - len(emptyResponses)
-
-	return nSuccess, nil
+	p.Logger.Info(fmt.Sprintf("Total number of empty responses: %d", len(totalEmptyResponses)))
+	
+	return totalProcessed, nil
 }
 
 func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily")
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", 0)
 }
 
 func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements")
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", 0)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
