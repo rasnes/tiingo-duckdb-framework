@@ -153,6 +153,8 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 	}))
 }
 
+// TODO: add test where columns in daily are randomised. The API says it may change order of columns.
+
 func createTestZip(csvContent string) []byte {
 	// Create a buffer to write our zip to
 	buf := new(bytes.Buffer)

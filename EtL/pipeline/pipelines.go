@@ -121,20 +121,29 @@ func (p *Pipeline) selectedFundamentals() ([]string, error) {
 
 type csvPerTicker func(ticker string) (csv []byte, err error)
 
-func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, error) {
+func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 	// TODO: This part should probably have more tailored error handling
 	// Like some HTTP error codes should be ignored (I might not have access).
 	// BUT: it seems the API sends 400 Bad Request with body: None if no access,
 	// which is the same as if the request were incorrect. Not optimal.
+	// UPDATE: with 20+ years of historical data avaiable, one gets 200 OK with body: None
+	// if data does not exists.
+	// Remaining question: what is the HTTP code on 3 year subscription and requesting >3 years?
+	// If it is still 200 but with body: None, I should probably just default to query data from 1995-01-01.
 	csvs := make([][]byte, 0)
+	emptyResponses := make([]string, 0)
 	for _, ticker := range tickers {
-		daily, err := fetch(ticker)
+		body, err := fetch(ticker)
 		if err != nil {
-			return nil, fmt.Errorf("error fetching data for ticker %s: %w", ticker, err)
+			return nil, emptyResponses, fmt.Errorf("error fetching data for ticker %s: %w", ticker, err)
 		}
-		csv, err := load.AddTickerColumn(daily, ticker)
+		if string(body) == "None" {
+			emptyResponses = append(emptyResponses, ticker)
+			continue
+		}
+		csv, err := load.AddTickerColumn(body, ticker)
 		if err != nil {
-			return nil, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", ticker, err)
+			return nil, emptyResponses, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", ticker, err)
 		}
 
 		csvs = append(csvs, csv)
@@ -142,13 +151,21 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, error) {
 
 	finalCsv, err := load.ConcatCSVs(csvs)
 	if err != nil {
-		return nil, fmt.Errorf("error concatenating CSVs: %w", err)
+		return nil, emptyResponses, fmt.Errorf("error concatenating CSVs: %w", err)
 	}
 
-	return finalCsv, nil
+	return finalCsv, emptyResponses, nil
 }
 
+// TODO: refactor DailyFundamentals and Statements into a common function.
+
 func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
+	// Make sure we have the latest supported tickers
+	err := p.supportedTickers()
+	if err != nil {
+		return 0, fmt.Errorf("error getting supported tickers: %v", err)
+	}
+
 	if len(tickers) == 0 {
 		tickersFromQuery, err := p.selectedFundamentals()
 		if err != nil {
@@ -174,7 +191,7 @@ func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
 		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
 	}
 
-	finalCsv, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetDailyFundamentals)
+	finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetDailyFundamentals)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching daily fundamentals: %w", err)
 	}
@@ -183,10 +200,19 @@ func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
 		return 0, fmt.Errorf("error loading daily fundamentals to DB: %w", err)
 	}
 
-	return len(tickers), nil
+	p.Logger.Info(fmt.Sprintf("Number of empty responses: %d", len(emptyResponses)))
+	nSuccess := len(tickers) - len(emptyResponses)
+
+	return nSuccess, nil
 }
 
 func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
+	// Make sure we have the latest supported tickers
+	err := p.supportedTickers()
+	if err != nil {
+		return 0, fmt.Errorf("error getting supported tickers: %v", err)
+	}
+
 	if len(tickers) == 0 {
 		tickersFromQuery, err := p.selectedFundamentals()
 		if err != nil {
@@ -212,7 +238,7 @@ func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
 		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
 	}
 
-	finalCsv, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetStatements)
+	finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetStatements)
 	if err != nil {
 		return 0, fmt.Errorf("error fetching statements: %w", err)
 	}
@@ -221,7 +247,10 @@ func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
 		return 0, fmt.Errorf("error loading statements to DB: %w", err)
 	}
 
-	return len(tickers), nil
+	p.Logger.Info(fmt.Sprintf("Number of empty responses: %d", len(emptyResponses)))
+	nSuccess := len(tickers) - len(emptyResponses)
+
+	return nSuccess, nil
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {

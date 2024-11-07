@@ -40,7 +40,7 @@ tiingo:
         secFilingWebsite,statementLastUpdated,dailyLastUpdated
     statements:
       format: csv
-      start_date: "2024-01-01"
+      start_date: "1995-01-01"
 
 
 
