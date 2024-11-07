@@ -27,7 +27,7 @@ tiingo:
   fundamentals:
     daily:
       format: csv
-      start_date: "today-168h"
+      start_date: "1995-01-01"
       ## OBS: even though the free text parf oof the docs for 2.6.4 Daily Data says columns param
       ## is supported, the request definition for the endpoint does not include it. So, it seems
       ## it is not supported.

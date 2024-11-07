@@ -13,6 +13,7 @@ import (
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/utils"
+	"github.com/sourcegraph/conc/iter"
 )
 
 type Pipeline struct {
@@ -132,26 +133,52 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 	// if data does not exists.
 	// Remaining question: what is the HTTP code on 3 year subscription and requesting >3 years?
 	// If it is still 200 but with body: None, I should probably just default to query data from 1995-01-01.
-	csvs := make([][]byte, 0)
-	emptyResponses := make([]string, 0)
-	for _, ticker := range tickers {
-		body, err := fetch(ticker)
-		if err != nil {
-			return nil, emptyResponses, fmt.Errorf("error fetching data for ticker %s: %w", ticker, err)
-		}
-		if string(body) == "None" {
-			emptyResponses = append(emptyResponses, ticker)
-			continue
-		}
-		csv, err := load.AddTickerColumn(body, ticker)
-		if err != nil {
-			return nil, emptyResponses, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", ticker, err)
-		}
 
-		csvs = append(csvs, csv)
+	// Create mapper with max 10 concurrent operations
+	mapper := iter.Mapper[string, []byte]{
+		MaxGoroutines: 10,
 	}
 
-	finalCsv, err := load.ConcatCSVs(csvs)
+	// Map over tickers concurrently, fetching CSV data for each
+	csvs, err := mapper.MapErr(tickers, func(ticker *string) ([]byte, error) {
+		body, err := fetch(*ticker)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching data for ticker %s: %w", *ticker, err)
+		}
+
+		// Handle empty responses by returning nil
+		if string(body) == "None" {
+			return nil, nil
+		}
+
+		csv, err := load.AddTickerColumn(body, *ticker)
+		if err != nil {
+			return nil, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", *ticker, err)
+		}
+
+		return csv, nil
+	})
+
+	// Track empty responses
+	emptyResponses := make([]string, 0)
+	validCSVs := make([][]byte, 0)
+
+	// Process results, separating valid CSVs and empty responses
+	for i, csv := range csvs {
+		if csv == nil {
+			emptyResponses = append(emptyResponses, tickers[i])
+		} else {
+			validCSVs = append(validCSVs, csv)
+		}
+	}
+
+	// If we got an error during fetching, return it
+	if err != nil {
+		return nil, emptyResponses, err
+	}
+
+	// Concatenate valid CSVs
+	finalCsv, err := load.ConcatCSVs(validCSVs)
 	if err != nil {
 		return nil, emptyResponses, fmt.Errorf("error concatenating CSVs: %w", err)
 	}
@@ -167,6 +194,12 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 	err := p.supportedTickers()
 	if err != nil {
 		return 0, fmt.Errorf("error getting supported tickers: %v", err)
+	}
+
+	// Make sure we have the latest fundamentals metadata
+	_, err = p.UpdateMetadata()
+	if err != nil {
+		return 0, fmt.Errorf("error updating metadata: %v", err)
 	}
 
 	if len(tickers) == 0 {
