@@ -437,6 +437,59 @@ func TestPipeline_Statements(t *testing.T) {
 	}
 }
 
+func TestFilterOutSkippedTickers(t *testing.T) {
+	tests := []struct {
+		name        string
+		tickers     []string
+		skipTickers []string
+		want        []string
+	}{
+		{
+			name:        "no tickers to skip",
+			tickers:     []string{"AAPL", "MSFT", "GOOGL"},
+			skipTickers: []string{},
+			want:        []string{"AAPL", "MSFT", "GOOGL"},
+		},
+		{
+			name:        "skip one ticker",
+			tickers:     []string{"AAPL", "MSFT", "GOOGL"},
+			skipTickers: []string{"MSFT"},
+			want:        []string{"AAPL", "GOOGL"},
+		},
+		{
+			name:        "skip multiple tickers",
+			tickers:     []string{"AAPL", "MSFT", "GOOGL", "TSLA"},
+			skipTickers: []string{"MSFT", "TSLA"},
+			want:        []string{"AAPL", "GOOGL"},
+		},
+		{
+			name:        "skip non-existent ticker",
+			tickers:     []string{"AAPL", "MSFT"},
+			skipTickers: []string{"INVALID"},
+			want:        []string{"AAPL", "MSFT"},
+		},
+		{
+			name:        "empty input tickers",
+			tickers:     []string{},
+			skipTickers: []string{"MSFT"},
+			want:        []string{},
+		},
+		{
+			name:        "skip all tickers",
+			tickers:     []string{"AAPL", "MSFT"},
+			skipTickers: []string{"AAPL", "MSFT"},
+			want:        []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterOutSkippedTickers(tt.tickers, tt.skipTickers)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestPipeline_DailyEndOfDay(t *testing.T) {
 	// Configure expected variables (see response from test server)
 	expectedInitRowsLastTradingDay := 7
