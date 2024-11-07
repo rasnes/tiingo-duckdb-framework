@@ -461,10 +461,6 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 	// Setup config
 	cfg := setupTestConfig(t)
 
-	// TODO: the below should be refactored to this:
-	// pipeline, cleanup := setupTestPipeline(t, server, nil)
-	// defer cleanup()
-
 	// Create pipeline
 	pipeline, err := NewPipeline(cfg, logger, nil)
 	assert.NoError(t, err)
