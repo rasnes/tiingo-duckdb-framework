@@ -243,16 +243,16 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 	}
 
 	p.Logger.Info(fmt.Sprintf("Total number of empty responses: %d", len(totalEmptyResponses)))
-	
+
 	return totalProcessed, nil
 }
 
-func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", 0)
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize)
 }
 
-func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", 0)
+func (p *Pipeline) Statements(tickers []string, half bool, batchSize int) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {

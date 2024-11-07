@@ -16,8 +16,9 @@ var fundamentalsCmd = &cobra.Command{
 
 func newFundamentalsDailyCmd() *cobra.Command {
 	var (
-		tickers  string
-		halfOnly bool
+		tickers   string
+		halfOnly  bool
+		batchSize int
 	)
 
 	cmd := &cobra.Command{
@@ -47,7 +48,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 				tickerSlice = strings.Split(tickers, ",")
 			}
 
-			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly)
+			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, batchSize)
 			if err != nil {
 				return fmt.Errorf("error updating daily fundamentals: %w", err)
 			}
@@ -60,6 +61,8 @@ func newFundamentalsDailyCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&tickers, "tickers", "", "Comma-separated list of tickers (e.g., AAPL,MSFT,GOOGL)")
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
+	cmd.Flags().IntVar(&batchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
+	cmd.Flags().IntVar(&batchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
 	return cmd
 }
 
@@ -93,8 +96,9 @@ func newMetadataCmd() *cobra.Command {
 
 func newStatementsCmd() *cobra.Command {
 	var (
-		tickers  string
-		halfOnly bool
+		tickers   string
+		halfOnly  bool
+		batchSize int
 	)
 
 	cmd := &cobra.Command{
@@ -124,7 +128,7 @@ func newStatementsCmd() *cobra.Command {
 				tickerSlice = strings.Split(tickers, ",")
 			}
 
-			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly)
+			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, batchSize)
 			if err != nil {
 				return fmt.Errorf("error updating statements: %w", err)
 			}
