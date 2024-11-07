@@ -103,6 +103,7 @@ func (p *Pipeline) selectedFundamentals() ([]string, error) {
 	if !p.InTest && os.Getenv("APP_ENV") != "prod" {
 		query += " using sample 20"
 	}
+	query += " order by ticker;"
 
 	res, err := p.DuckDB.GetQueryResults(query)
 	if err != nil {

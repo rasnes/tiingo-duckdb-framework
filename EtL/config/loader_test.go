@@ -29,7 +29,6 @@ extract:
     retry_max: 5
 duckdb:
   path: "test.db"
-  append_table: daily_adjusted
 tiingo:
   eod:
     format: csv
@@ -51,7 +50,6 @@ tiingo:
 				},
 				DuckDB: DuckDBConfig{
 					Path:              "test.db",
-					AppendTable:       "daily_adjusted",
 					ConnInitFnQueries: nil,
 				},
 				Tiingo: TiingoConfig{
