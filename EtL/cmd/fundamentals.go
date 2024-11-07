@@ -16,14 +16,14 @@ var fundamentalsCmd = &cobra.Command{
 
 func newFundamentalsDailyCmd() *cobra.Command {
 	var (
-		tickers      string
-		skipTickers  string
-		halfOnly     bool
+		tickers        string
+		skipTickers    string
+		halfOnly       bool
 		dailyBatchSize int
 	)
 
 	cmd := &cobra.Command{
-		Use:   "daily [--tickers TICKER1,TICKER2,...] [--halfOnly]",
+		Use:   "daily [--tickers TICKER1,TICKER2,...] [--skipTickers TICKER1,TICKER2,...] [--halfOnly]",
 		Short: "Updates daily fundamentals data for selected tickers",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Validate that halfOnly is only used when tickers is not provided
@@ -102,14 +102,14 @@ func newMetadataCmd() *cobra.Command {
 
 func newStatementsCmd() *cobra.Command {
 	var (
-		tickers          string
-		skipTickers      string
-		halfOnly         bool
+		tickers             string
+		skipTickers         string
+		halfOnly            bool
 		statementsBatchSize int
 	)
 
 	cmd := &cobra.Command{
-		Use:   "statements [--tickers TICKER1,TICKER2,...] [--halfOnly]",
+		Use:   "statements [--tickers TICKER1,TICKER2,...] [--skipTickers TICKER1,TICKER2,...] [--halfOnly]",
 		Short: "Updates financial statements data for selected tickers",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Validate that halfOnly is only used when tickers is not provided

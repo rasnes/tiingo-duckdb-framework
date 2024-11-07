@@ -135,9 +135,8 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 	// Remaining question: what is the HTTP code on 3 year subscription and requesting >3 years?
 	// If it is still 200 but with body: None, I should probably just default to query data from 1995-01-01.
 
-	// Create mapper with max 10 concurrent operations
 	mapper := iter.Mapper[string, []byte]{
-		MaxGoroutines: 10,
+		MaxGoroutines: 20,
 	}
 
 	// Map over tickers concurrently, fetching CSV data for each
@@ -282,9 +281,16 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 }
 
 // filterOutSkippedTickers removes any tickers that should be skipped from the input slice
+// The comparison is case insensitive
 func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
+	// Convert skip tickers to uppercase for case-insensitive comparison
+	upperSkipTickers := make([]string, len(skipTickers))
+	for i, t := range skipTickers {
+		upperSkipTickers[i] = strings.ToUpper(t)
+	}
+	
 	return slices.DeleteFunc(tickers, func(ticker string) bool {
-		return slices.Contains(skipTickers, ticker)
+		return slices.Contains(upperSkipTickers, strings.ToUpper(ticker))
 	})
 }
 

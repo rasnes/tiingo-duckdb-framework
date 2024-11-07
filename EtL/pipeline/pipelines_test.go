@@ -453,13 +453,13 @@ func TestFilterOutSkippedTickers(t *testing.T) {
 		{
 			name:        "skip one ticker",
 			tickers:     []string{"AAPL", "MSFT", "GOOGL"},
-			skipTickers: []string{"MSFT"},
+			skipTickers: []string{"msft"},  // lowercase skip ticker
 			want:        []string{"AAPL", "GOOGL"},
 		},
 		{
-			name:        "skip multiple tickers",
+			name:        "skip multiple tickers - mixed case",
 			tickers:     []string{"AAPL", "MSFT", "GOOGL", "TSLA"},
-			skipTickers: []string{"MSFT", "TSLA"},
+			skipTickers: []string{"msft", "TSla"},  // mixed case skip tickers
 			want:        []string{"AAPL", "GOOGL"},
 		},
 		{
