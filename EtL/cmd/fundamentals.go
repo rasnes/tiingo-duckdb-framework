@@ -17,6 +17,7 @@ var fundamentalsCmd = &cobra.Command{
 func newFundamentalsDailyCmd() *cobra.Command {
 	var (
 		tickers      string
+		skipTickers  string
 		halfOnly     bool
 		dailyBatchSize int
 	)
@@ -48,7 +49,12 @@ func newFundamentalsDailyCmd() *cobra.Command {
 				tickerSlice = strings.Split(tickers, ",")
 			}
 
-			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, dailyBatchSize)
+			var skipTickerSlice []string
+			if skipTickers != "" {
+				skipTickerSlice = strings.Split(skipTickers, ",")
+			}
+
+			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, dailyBatchSize, skipTickerSlice)
 			if err != nil {
 				return fmt.Errorf("error updating daily fundamentals: %w", err)
 			}
@@ -60,6 +66,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&tickers, "tickers", "", "Comma-separated list of tickers (e.g., AAPL,MSFT,GOOGL)")
+	cmd.Flags().StringVar(&skipTickers, "skipTickers", "", "Comma-separated list of tickers to skip (e.g., BAD1,BAD2)")
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	cmd.Flags().IntVar(&dailyBatchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
 	return cmd
@@ -96,6 +103,7 @@ func newMetadataCmd() *cobra.Command {
 func newStatementsCmd() *cobra.Command {
 	var (
 		tickers          string
+		skipTickers      string
 		halfOnly         bool
 		statementsBatchSize int
 	)
@@ -127,7 +135,12 @@ func newStatementsCmd() *cobra.Command {
 				tickerSlice = strings.Split(tickers, ",")
 			}
 
-			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, statementsBatchSize)
+			var skipTickerSlice []string
+			if skipTickers != "" {
+				skipTickerSlice = strings.Split(skipTickers, ",")
+			}
+
+			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, statementsBatchSize, skipTickerSlice)
 			if err != nil {
 				return fmt.Errorf("error updating statements: %w", err)
 			}
@@ -139,6 +152,7 @@ func newStatementsCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&tickers, "tickers", "", "Comma-separated list of tickers (e.g., AAPL,MSFT,GOOGL)")
+	cmd.Flags().StringVar(&skipTickers, "skipTickers", "", "Comma-separated list of tickers to skip (e.g., BAD1,BAD2)")
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	cmd.Flags().IntVar(&statementsBatchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
 	return cmd

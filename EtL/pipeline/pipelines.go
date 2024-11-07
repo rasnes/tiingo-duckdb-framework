@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
@@ -280,11 +281,24 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 	return totalProcessed, nil
 }
 
-func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int) (int, error) {
+// filterOutSkippedTickers removes any tickers that should be skipped from the input slice
+func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
+	return slices.DeleteFunc(tickers, func(ticker string) bool {
+		return slices.Contains(skipTickers, ticker)
+	})
+}
+
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
+	if len(skipTickers) > 0 {
+		tickers = filterOutSkippedTickers(tickers, skipTickers)
+	}
 	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize)
 }
 
-func (p *Pipeline) Statements(tickers []string, half bool, batchSize int) (int, error) {
+func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
+	if len(skipTickers) > 0 {
+		tickers = filterOutSkippedTickers(tickers, skipTickers)
+	}
 	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize)
 }
 
