@@ -190,7 +190,15 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 // for the specified tickers into DuckDB. If no tickers provided, uses selectedFundamentals().
 // If batchSize > 0, processes tickers in batches to manage memory usage.
 // Skips any tickers specified in skipTickers.
-func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn csvPerTicker, tableName string, batchSize int, skipTickers []string) (int, error) {
+func (p *Pipeline) fetchFundamentalsData(
+	tickers []string,
+	half bool,
+	fetchFn csvPerTicker,
+	tableName string,
+	batchSize int,
+	skipTickers []string,
+	skipExisting bool,
+) (int, error) {
 	// Get tickers if none provided
 	if len(tickers) == 0 {
 		var err error
@@ -217,6 +225,15 @@ func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn cs
 			tickers,
 			p.timeProvider.Now().Hour()%2 == 0,
 		)
+	}
+
+	if skipExisting {
+		// Filter out tickers that already exist in the database
+		existingTickers, err := p.DuckDB.GetQueryResults("select distinct ticker from " + tableName)
+		if err != nil {
+			return 0, fmt.Errorf("error getting existing tickers: %w", err)
+		}
+		skipTickers = append(skipTickers, existingTickers["ticker"]...)
 	}
 
 	// Filter out skipped tickers before any processing
@@ -297,12 +314,12 @@ func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
 	})
 }
 
-func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize, skipTickers)
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize, skipTickers, skipExisting)
 }
 
-func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize, skipTickers)
+func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize, skipTickers, skipExisting)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
