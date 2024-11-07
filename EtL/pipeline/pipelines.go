@@ -21,6 +21,7 @@ type Pipeline struct {
 	Logger       *slog.Logger
 	sqlDir       string
 	timeProvider utils.TimeProvider
+	InTest       bool
 }
 
 func NewPipeline(config *config.Config, logger *slog.Logger, timeProvider utils.TimeProvider) (*Pipeline, error) {
@@ -98,8 +99,8 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 }
 
 func (p *Pipeline) selectedFundamentals() ([]string, error) {
-	query := "select ticker from fundamentals.selected_fundamentals"
-	if os.Getenv("APP_ENV") != "prod" {
+	query := "select ticker from fundamentals.selected_fundamentals order by ticker"
+	if !p.InTest && os.Getenv("APP_ENV") != "prod" {
 		query += " using sample 20"
 	}
 
@@ -159,7 +160,9 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 
 // TODO: refactor DailyFundamentals and Statements into a common function.
 
-func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
+// fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
+// for the specified tickers into DuckDB.
+func (p *Pipeline) fetchFundamentalsData(tickers []string, half bool, fetchFn csvPerTicker, tableName string) (int, error) {
 	// Make sure we have the latest supported tickers
 	err := p.supportedTickers()
 	if err != nil {
@@ -191,13 +194,17 @@ func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
 		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
 	}
 
-	finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetDailyFundamentals)
+	// Parse table name for logging
+	dataType := strings.TrimPrefix(tableName, "fundamentals.")
+	dataType = strings.ReplaceAll(dataType, "_", " ")
+
+	finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, fetchFn)
 	if err != nil {
-		return 0, fmt.Errorf("error fetching daily fundamentals: %w", err)
+		return 0, fmt.Errorf("error fetching %s data: %w", dataType, err)
 	}
 
-	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.daily", true); err != nil {
-		return 0, fmt.Errorf("error loading daily fundamentals to DB: %w", err)
+	if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+		return 0, fmt.Errorf("error loading %s data to DB: %w", dataType, err)
 	}
 
 	p.Logger.Info(fmt.Sprintf("Number of empty responses: %d", len(emptyResponses)))
@@ -206,51 +213,12 @@ func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
 	return nSuccess, nil
 }
 
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily")
+}
+
 func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
-	// Make sure we have the latest supported tickers
-	err := p.supportedTickers()
-	if err != nil {
-		return 0, fmt.Errorf("error getting supported tickers: %v", err)
-	}
-
-	if len(tickers) == 0 {
-		tickersFromQuery, err := p.selectedFundamentals()
-		if err != nil {
-			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
-		}
-
-		// Below is a simple workaround for Tiingo's 10k requests per hour.
-		// In Github Actions two cron jobs are scheduled one hour apart, to make sure we can fetch data for all tickers.
-		// Take the modulo of the current hour to determine which half of the tickers to process.
-		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
-		if half {
-			tickersFromQuery = utils.HalfOfSlice(
-				tickersFromQuery,
-				p.timeProvider.Now().Hour()%2 == 0,
-			)
-		}
-
-		tickers = tickersFromQuery
-	}
-
-	upperCaseTickers := make([]string, 0)
-	for _, ticker := range tickers {
-		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
-	}
-
-	finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetStatements)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching statements: %w", err)
-	}
-
-	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.statements", true); err != nil {
-		return 0, fmt.Errorf("error loading statements to DB: %w", err)
-	}
-
-	p.Logger.Info(fmt.Sprintf("Number of empty responses: %d", len(emptyResponses)))
-	nSuccess := len(tickers) - len(emptyResponses)
-
-	return nSuccess, nil
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements")
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {

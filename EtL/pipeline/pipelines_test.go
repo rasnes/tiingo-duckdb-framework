@@ -243,6 +243,7 @@ func setupTestPipeline(t *testing.T, server *httptest.Server, timeProvider utils
 	pipeline.TiingoClient.BaseURL = server.URL
 	pipeline.TiingoClient.InTest = true
 	pipeline.timeProvider = timeProvider
+	pipeline.InTest = true
 
 	// Cleanup function
 	cleanup := func() {
