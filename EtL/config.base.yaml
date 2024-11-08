@@ -28,7 +28,7 @@ tiingo:
     daily:
       format: csv
       start_date: "today-192h" # Last 8 days
-      ## OBS: even though the free text parf oof the docs for 2.6.4 Daily Data says columns param
+      ## OBS: even though the free text part of the docs for 2.6.4 Daily Data says columns param
       ## is supported, the request definition for the endpoint does not include it. So, it seems
       ## it is not supported.
       # columns: "date,marketCap,enterpriseVal,peRatio,pbRatio,trailingPEG1Y"
