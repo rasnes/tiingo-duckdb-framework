@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/config"
@@ -13,6 +14,7 @@ import (
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/extract"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/load"
 	"github.com/rasnes/tiingo-duckdb-framework/EtL/utils"
+	"github.com/sourcegraph/conc/iter"
 )
 
 type Pipeline struct {
@@ -21,6 +23,7 @@ type Pipeline struct {
 	Logger       *slog.Logger
 	sqlDir       string
 	timeProvider utils.TimeProvider
+	InTest       bool
 }
 
 func NewPipeline(config *config.Config, logger *slog.Logger, timeProvider utils.TimeProvider) (*Pipeline, error) {
@@ -99,9 +102,10 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 
 func (p *Pipeline) selectedFundamentals() ([]string, error) {
 	query := "select ticker from fundamentals.selected_fundamentals"
-	if os.Getenv("APP_ENV") != "prod" {
+	if !p.InTest && os.Getenv("APP_ENV") != "prod" {
 		query += " using sample 20"
 	}
+	query += " order by ticker;"
 
 	res, err := p.DuckDB.GetQueryResults(query)
 	if err != nil {
@@ -121,107 +125,206 @@ func (p *Pipeline) selectedFundamentals() ([]string, error) {
 
 type csvPerTicker func(ticker string) (csv []byte, err error)
 
-func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, error) {
+func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 	// TODO: This part should probably have more tailored error handling
 	// Like some HTTP error codes should be ignored (I might not have access).
 	// BUT: it seems the API sends 400 Bad Request with body: None if no access,
 	// which is the same as if the request were incorrect. Not optimal.
-	csvs := make([][]byte, 0)
-	for _, ticker := range tickers {
-		daily, err := fetch(ticker)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching data for ticker %s: %w", ticker, err)
-		}
-		csv, err := load.AddTickerColumn(daily, ticker)
-		if err != nil {
-			return nil, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", ticker, err)
-		}
+	// UPDATE: with 20+ years of historical data avaiable, one gets 200 OK with body: None
+	// if data does not exists.
+	// Remaining question: what is the HTTP code on 3 year subscription and requesting >3 years?
+	// If it is still 200 but with body: None, I should probably just default to query data from 1995-01-01.
 
-		csvs = append(csvs, csv)
+	mapper := iter.Mapper[string, []byte]{
+		MaxGoroutines: 20,
 	}
 
-	finalCsv, err := load.ConcatCSVs(csvs)
+	// Map over tickers concurrently, fetching CSV data for each
+	csvs, err := mapper.MapErr(tickers, func(ticker *string) ([]byte, error) {
+		body, err := fetch(*ticker)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching data for ticker %s: %w", *ticker, err)
+		}
+
+		// Handle empty responses by returning nil
+		if string(body) == "None" {
+			return nil, nil
+		}
+
+		csv, err := load.AddTickerColumn(body, *ticker)
+		if err != nil {
+			return nil, fmt.Errorf("error adding ticker column to CSV for ticker %s: %w", *ticker, err)
+		}
+
+		return csv, nil
+	})
+
+	// Track empty responses
+	emptyResponses := make([]string, 0)
+	validCSVs := make([][]byte, 0)
+
+	// Process results, separating valid CSVs and empty responses
+	for i, csv := range csvs {
+		if csv == nil {
+			emptyResponses = append(emptyResponses, tickers[i])
+		} else {
+			validCSVs = append(validCSVs, csv)
+		}
+	}
+
+	// If we got an error during fetching, return it
 	if err != nil {
-		return nil, fmt.Errorf("error concatenating CSVs: %w", err)
+		return nil, emptyResponses, err
 	}
 
-	return finalCsv, nil
+	// TODO: handle the case of empty validCSVs
+	// Concatenate valid CSVs
+	if len(validCSVs) == 0 {
+		return nil, emptyResponses, nil
+	}
+	finalCsv, err := load.ConcatCSVs(validCSVs)
+	if err != nil {
+		return nil, emptyResponses, fmt.Errorf("error concatenating CSVs: %w", err)
+	}
+
+	return finalCsv, emptyResponses, nil
 }
 
-func (p *Pipeline) DailyFundamentals(tickers []string, half bool) (int, error) {
+// TODO: should add some integration tests for this method, with batchsize, skipExisting, and skipTickers populated with different values.
+// fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
+// for the specified tickers into DuckDB. If no tickers provided, uses selectedFundamentals().
+// If batchSize > 0, processes tickers in batches to manage memory usage.
+// Skips any tickers specified in skipTickers.
+func (p *Pipeline) fetchFundamentalsData(
+	tickers []string,
+	half bool,
+	fetchFn csvPerTicker,
+	tableName string,
+	batchSize int,
+	skipTickers []string,
+	skipExisting bool,
+) (int, error) {
+	// Get tickers if none provided
 	if len(tickers) == 0 {
-		tickersFromQuery, err := p.selectedFundamentals()
+		var err error
+		tickers, err = p.selectedFundamentals()
 		if err != nil {
 			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
 		}
+	}
+	// Make sure we have the latest supported tickers
+	err := p.supportedTickers()
+	if err != nil {
+		return 0, fmt.Errorf("error getting supported tickers: %v", err)
+	}
 
-		// Below is a simple workaround for Tiingo's 10k requests per hour.
-		// In Github Actions two cron jobs are scheduled one hour apart, to make sure we can fetch data for all tickers.
-		// Take the modulo of the current hour to determine which half of the tickers to process.
-		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
-		if half {
-			tickersFromQuery = utils.HalfOfSlice(
-				tickersFromQuery,
-				p.timeProvider.Now().Hour()%2 == 0,
-			)
+	// Make sure we have the latest fundamentals metadata
+	_, err = p.UpdateMetadata()
+	if err != nil {
+		return 0, fmt.Errorf("error updating metadata: %v", err)
+	}
+
+	// Handle half processing if requested
+	if half {
+		tickers = utils.HalfOfSlice(
+			tickers,
+			p.timeProvider.Now().Hour()%2 == 0,
+		)
+	}
+
+	if skipExisting {
+		// Filter out tickers that already exist in the database
+		existingTickers, err := p.DuckDB.GetQueryResults("select distinct ticker from " + tableName)
+		if err != nil {
+			return 0, fmt.Errorf("error getting existing tickers: %w", err)
+		}
+		skipTickers = append(skipTickers, existingTickers["ticker"]...)
+	}
+
+	// Filter out skipped tickers before any processing
+	if len(skipTickers) > 0 {
+		tickers = filterOutSkippedTickers(tickers, skipTickers)
+	}
+
+	// Convert all tickers to uppercase for consistency
+	upperCaseTickers := make([]string, len(tickers))
+	for i, ticker := range tickers {
+		upperCaseTickers[i] = strings.ToUpper(ticker)
+	}
+
+	// Parse table name for logging
+	dataType := strings.TrimPrefix(tableName, "fundamentals.")
+	dataType = strings.ReplaceAll(dataType, "_", " ")
+
+	totalEmptyResponses := make([]string, 0)
+	totalProcessed := 0
+
+	// Process all tickers at once if batchSize is 0
+	if batchSize == 0 {
+		finalCsv, emptyResponses, err := fetchCSVs(upperCaseTickers, fetchFn)
+		if err != nil {
+			return 0, fmt.Errorf("error fetching %s data: %w", dataType, err)
 		}
 
-		tickers = tickersFromQuery
+		if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+			return 0, fmt.Errorf("error loading %s data to DB: %w", dataType, err)
+		}
+		totalEmptyResponses = emptyResponses
+		totalProcessed = len(upperCaseTickers) - len(emptyResponses)
+	} else {
+		// Process tickers in batches
+		for i := 0; i < len(upperCaseTickers); i += batchSize {
+			end := i + batchSize
+			if end > len(upperCaseTickers) {
+				end = len(upperCaseTickers)
+			}
+			batch := upperCaseTickers[i:end]
+
+			finalCsv, emptyResponses, err := fetchCSVs(batch, fetchFn)
+			if err != nil {
+				return totalProcessed, fmt.Errorf("error fetching %s data for batch %d-%d: %w", dataType, i, end-1, err)
+			}
+
+			if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+				return totalProcessed, fmt.Errorf("error loading %s data to DB for batch %d-%d: %w", dataType, i, end-1, err)
+			}
+
+			totalEmptyResponses = append(totalEmptyResponses, emptyResponses...)
+			batchProcessed := len(batch) - len(emptyResponses)
+			totalProcessed += batchProcessed
+
+			p.Logger.Info(fmt.Sprintf("Successfully processed batch of %s data", dataType),
+				"batch", fmt.Sprintf("%d-%d", i, end-1),
+				"processed", batchProcessed,
+				"empty_responses", len(emptyResponses))
+		}
 	}
 
-	upperCaseTickers := make([]string, 0)
-	for _, ticker := range tickers {
-		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
-	}
+	p.Logger.Info(fmt.Sprintf("Total number of empty responses: %d", len(totalEmptyResponses)))
 
-	finalCsv, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetDailyFundamentals)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching daily fundamentals: %w", err)
-	}
-
-	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.daily", true); err != nil {
-		return 0, fmt.Errorf("error loading daily fundamentals to DB: %w", err)
-	}
-
-	return len(tickers), nil
+	return totalProcessed, nil
 }
 
-func (p *Pipeline) Statements(tickers []string, half bool) (int, error) {
-	if len(tickers) == 0 {
-		tickersFromQuery, err := p.selectedFundamentals()
-		if err != nil {
-			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
-		}
-
-		// Below is a simple workaround for Tiingo's 10k requests per hour.
-		// In Github Actions two cron jobs are scheduled one hour apart, to make sure we can fetch data for all tickers.
-		// Take the modulo of the current hour to determine which half of the tickers to process.
-		// This is a simple way to split the tickers into two halves, each of which could be scheduled on separate clock hours.
-		if half {
-			tickersFromQuery = utils.HalfOfSlice(
-				tickersFromQuery,
-				p.timeProvider.Now().Hour()%2 == 0,
-			)
-		}
-
-		tickers = tickersFromQuery
+// filterOutSkippedTickers removes any tickers that should be skipped from the input slice
+// The comparison is case insensitive
+func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
+	// Convert skip tickers to uppercase for case-insensitive comparison
+	upperSkipTickers := make([]string, len(skipTickers))
+	for i, t := range skipTickers {
+		upperSkipTickers[i] = strings.ToUpper(t)
 	}
 
-	upperCaseTickers := make([]string, 0)
-	for _, ticker := range tickers {
-		upperCaseTickers = append(upperCaseTickers, strings.ToUpper(ticker))
-	}
+	return slices.DeleteFunc(tickers, func(ticker string) bool {
+		return slices.Contains(upperSkipTickers, strings.ToUpper(ticker))
+	})
+}
 
-	finalCsv, err := fetchCSVs(upperCaseTickers, p.TiingoClient.GetStatements)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching statements: %w", err)
-	}
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize, skipTickers, skipExisting)
+}
 
-	if err := p.DuckDB.LoadCSV(finalCsv, "fundamentals.statements", true); err != nil {
-		return 0, fmt.Errorf("error loading statements to DB: %w", err)
-	}
-
-	return len(tickers), nil
+func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool) (int, error) {
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize, skipTickers, skipExisting)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {

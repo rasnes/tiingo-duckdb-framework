@@ -153,6 +153,8 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 	}))
 }
 
+// TODO: add test where columns in daily are randomised. The API says it may change order of columns.
+
 func createTestZip(csvContent string) []byte {
 	// Create a buffer to write our zip to
 	buf := new(bytes.Buffer)
@@ -241,6 +243,7 @@ func setupTestPipeline(t *testing.T, server *httptest.Server, timeProvider utils
 	pipeline.TiingoClient.BaseURL = server.URL
 	pipeline.TiingoClient.InTest = true
 	pipeline.timeProvider = timeProvider
+	pipeline.InTest = true
 
 	// Cleanup function
 	cleanup := func() {
@@ -350,7 +353,7 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 			}
 
 			// Run the test
-			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half)
+			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half, 0, nil, false)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, count)
 
@@ -418,7 +421,7 @@ func TestPipeline_Statements(t *testing.T) {
 			}
 
 			// Run the test
-			count, err := pipeline.Statements(tt.tickers, tt.half)
+			count, err := pipeline.Statements(tt.tickers, tt.half, 0, nil, false)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, count)
 
@@ -430,6 +433,59 @@ func TestPipeline_Statements(t *testing.T) {
             `)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantTickers, rows["ticker"])
+		})
+	}
+}
+
+func TestFilterOutSkippedTickers(t *testing.T) {
+	tests := []struct {
+		name        string
+		tickers     []string
+		skipTickers []string
+		want        []string
+	}{
+		{
+			name:        "no tickers to skip",
+			tickers:     []string{"AAPL", "MSFT", "GOOGL"},
+			skipTickers: []string{},
+			want:        []string{"AAPL", "MSFT", "GOOGL"},
+		},
+		{
+			name:        "skip one ticker",
+			tickers:     []string{"AAPL", "MSFT", "GOOGL"},
+			skipTickers: []string{"msft"}, // lowercase skip ticker
+			want:        []string{"AAPL", "GOOGL"},
+		},
+		{
+			name:        "skip multiple tickers - mixed case",
+			tickers:     []string{"AAPL", "MSFT", "GOOGL", "TSLA"},
+			skipTickers: []string{"msft", "TSla"}, // mixed case skip tickers
+			want:        []string{"AAPL", "GOOGL"},
+		},
+		{
+			name:        "skip non-existent ticker",
+			tickers:     []string{"AAPL", "MSFT"},
+			skipTickers: []string{"INVALID"},
+			want:        []string{"AAPL", "MSFT"},
+		},
+		{
+			name:        "empty input tickers",
+			tickers:     []string{},
+			skipTickers: []string{"MSFT"},
+			want:        []string{},
+		},
+		{
+			name:        "skip all tickers",
+			tickers:     []string{"AAPL", "MSFT"},
+			skipTickers: []string{"AAPL", "MSFT"},
+			want:        []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterOutSkippedTickers(tt.tickers, tt.skipTickers)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -447,25 +503,9 @@ func TestPipeline_DailyEndOfDay(t *testing.T) {
 	server := setupTestServer()
 	defer server.Close()
 
-	// Setup environment
-	os.Setenv("TIINGO_TOKEN", "test-token")
-	defer os.Unsetenv("TIINGO_TOKEN")
-
-	// Setup logger
-	var logBuffer bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuffer, nil))
-
-	// Setup config
-	cfg := setupTestConfig(t)
-
-	// TODO: the below should be refactored to this:
-	// pipeline, cleanup := setupTestPipeline(t, server, nil)
-	// defer cleanup()
-
-	// Create pipeline
-	pipeline, err := NewPipeline(cfg, logger, nil)
-	assert.NoError(t, err)
-	defer pipeline.Close()
+	// Setup pipeline with no time provider (not needed for this test)
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
 	// Asserting that existing mock data in the database is as expected
 	rowsLastTradingDayPre, err := pipeline.DuckDB.GetQueryResults("SELECT count(*) as count FROM main.last_trading_day;")

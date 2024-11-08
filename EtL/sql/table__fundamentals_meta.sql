@@ -1,5 +1,3 @@
--- TODO: recreate table when
--- switching to paid subscription for fundamentals.
 create table if not exists fundamentals.meta (
   permaTicker VARCHAR primary key,
   ticker VARCHAR,

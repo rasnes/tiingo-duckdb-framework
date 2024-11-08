@@ -28,7 +28,6 @@ type BackoffConfig struct {
 
 type DuckDBConfig struct {
 	Path              string   `mapstructure:"path"`
-	AppendTable       string   `mapstructure:"append_table"` // TODO: this needs to be refactored.
 	ConnInitFnQueries []string `mapstructure:"conn_init_fn_queries"`
 }
 
