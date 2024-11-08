@@ -1,6 +1,7 @@
 duckdb:
   path: "md:prod"
 
-
-
-
+tiingo:
+  fundamentals:
+    statements:
+      start_date: "today-25000h" # Last ~3 years, to get _any_ changes within the max allowed lookback for the $10 fundamentals subscription

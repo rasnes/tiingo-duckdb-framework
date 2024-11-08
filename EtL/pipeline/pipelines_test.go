@@ -221,6 +221,10 @@ func setupTestConfig(t *testing.T) *config.Config {
 
 	cfg.DuckDB.ConnInitFnQueries = append(updatedQueries, testSQLFiles...)
 
+	// Add required configuration for fundamentals statements
+	cfg.Tiingo.Fundamentals.Statements.StartDate = "2024-01-01"
+	cfg.Tiingo.Fundamentals.Daily.StartDate = "2024-01-01"
+
 	return cfg
 }
 
@@ -353,7 +357,7 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 			}
 
 			// Run the test
-			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half, 0, nil, false)
+			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half, 0, nil, false, 0)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, count)
 
@@ -421,7 +425,7 @@ func TestPipeline_Statements(t *testing.T) {
 			}
 
 			// Run the test
-			count, err := pipeline.Statements(tt.tickers, tt.half, 0, nil, false)
+			count, err := pipeline.Statements(tt.tickers, tt.half, 0, nil, false, 0)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, count)
 

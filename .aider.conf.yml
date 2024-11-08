@@ -280,9 +280,6 @@ auto-commits: false
 ## specify a read-only file (can be used multiple times)
 read:
   - CONVENTIONS.md
-  - EtL/pipeline/pipelines.go
-  - EtL/extract/fetch.go
-  - EtL/extract/fetch_test.go
 
 ## Use VI editing mode in the terminal (default: False)
 #vim: false
