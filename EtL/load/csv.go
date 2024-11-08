@@ -61,10 +61,7 @@ func AddTickerColumn(csvData []byte, ticker string) ([]byte, error) {
 // It uses the first CSV file as the header and appends the remaining CSV files.
 func ConcatCSVs(csvs [][]byte) ([]byte, error) {
 	if len(csvs) == 0 {
-		// TODO: this should probably not be an error,
-		// as it should be allowed to get a list of empty CSVs here,
-		// in the case of only None responses from the API.
-		return nil, fmt.Errorf("received empty CSV data")
+		return nil, nil
 	}
 
 	parts := csvs
