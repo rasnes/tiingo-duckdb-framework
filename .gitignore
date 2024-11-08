@@ -39,6 +39,7 @@ venv.bak/
 *.db
 *.duckdb
 *.wal
+DATA.md
 
 # MacOS
 .DS_Store
@@ -50,4 +51,4 @@ venv.bak/
 .aider*
 .sesskey
 sonnet
-
+openrouter/

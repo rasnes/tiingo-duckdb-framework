@@ -20,6 +20,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 		skipTickers    string
 		halfOnly       bool
 		dailyBatchSize int
+		skipExisting   bool
 	)
 
 	cmd := &cobra.Command{
@@ -54,7 +55,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 				skipTickerSlice = strings.Split(skipTickers, ",")
 			}
 
-			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, dailyBatchSize, skipTickerSlice)
+			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, dailyBatchSize, skipTickerSlice, skipExisting)
 			if err != nil {
 				return fmt.Errorf("error updating daily fundamentals: %w", err)
 			}
@@ -69,6 +70,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 	cmd.Flags().StringVar(&skipTickers, "skipTickers", "", "Comma-separated list of tickers to skip (e.g., BAD1,BAD2)")
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	cmd.Flags().IntVar(&dailyBatchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
+	cmd.Flags().BoolVar(&skipExisting, "skipExisting", false, "Skip tickers that already exist in the database")
 	return cmd
 }
 
@@ -106,6 +108,7 @@ func newStatementsCmd() *cobra.Command {
 		skipTickers         string
 		halfOnly            bool
 		statementsBatchSize int
+		skipExisting        bool
 	)
 
 	cmd := &cobra.Command{
@@ -140,7 +143,7 @@ func newStatementsCmd() *cobra.Command {
 				skipTickerSlice = strings.Split(skipTickers, ",")
 			}
 
-			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, statementsBatchSize, skipTickerSlice)
+			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, statementsBatchSize, skipTickerSlice, skipExisting)
 			if err != nil {
 				return fmt.Errorf("error updating statements: %w", err)
 			}
@@ -155,6 +158,7 @@ func newStatementsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&skipTickers, "skipTickers", "", "Comma-separated list of tickers to skip (e.g., BAD1,BAD2)")
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	cmd.Flags().IntVar(&statementsBatchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
+	cmd.Flags().BoolVar(&skipExisting, "skipExisting", false, "Skip tickers that already exist in the database")
 	return cmd
 }
 

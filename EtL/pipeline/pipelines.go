@@ -177,7 +177,11 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 		return nil, emptyResponses, err
 	}
 
+	// TODO: handle the case of empty validCSVs
 	// Concatenate valid CSVs
+	if len(validCSVs) == 0 {
+		return nil, emptyResponses, nil
+	}
 	finalCsv, err := load.ConcatCSVs(validCSVs)
 	if err != nil {
 		return nil, emptyResponses, fmt.Errorf("error concatenating CSVs: %w", err)
@@ -186,6 +190,7 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 	return finalCsv, emptyResponses, nil
 }
 
+// TODO: should add some integration tests for this method, with batchsize, skipExisting, and skipTickers populated with different values.
 // fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
 // for the specified tickers into DuckDB. If no tickers provided, uses selectedFundamentals().
 // If batchSize > 0, processes tickers in batches to manage memory usage.

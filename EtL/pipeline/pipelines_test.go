@@ -353,7 +353,7 @@ func TestPipeline_DailyFundamentals(t *testing.T) {
 			}
 
 			// Run the test
-			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half, 0, nil)
+			count, err := pipeline.DailyFundamentals(tt.tickers, tt.half, 0, nil, false)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, count)
 
@@ -421,7 +421,7 @@ func TestPipeline_Statements(t *testing.T) {
 			}
 
 			// Run the test
-			count, err := pipeline.Statements(tt.tickers, tt.half, 0, nil)
+			count, err := pipeline.Statements(tt.tickers, tt.half, 0, nil, false)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, count)
 
