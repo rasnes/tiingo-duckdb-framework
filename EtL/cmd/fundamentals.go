@@ -21,10 +21,11 @@ func newFundamentalsDailyCmd() *cobra.Command {
 		halfOnly       bool
 		dailyBatchSize int
 		skipExisting   bool
+		lookback       int
 	)
 
 	cmd := &cobra.Command{
-		Use:   "daily [--tickers TICKER1,TICKER2,...] [--skipTickers TICKER1,TICKER2,...] [--halfOnly]",
+		Use:   "daily [--tickers TICKER1,TICKER2,...] [--skipTickers TICKER1,TICKER2,...] [--halfOnly] [--lookback DAYS] [--batchSize SIZE] [--skipExisting]",
 		Short: "Updates daily fundamentals data for selected tickers",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Validate that halfOnly is only used when tickers is not provided
@@ -55,7 +56,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 				skipTickerSlice = strings.Split(skipTickers, ",")
 			}
 
-			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, dailyBatchSize, skipTickerSlice, skipExisting)
+			rowsAffected, err := pipeline.DailyFundamentals(tickerSlice, halfOnly, dailyBatchSize, skipTickerSlice, skipExisting, lookback)
 			if err != nil {
 				return fmt.Errorf("error updating daily fundamentals: %w", err)
 			}
@@ -71,6 +72,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	cmd.Flags().IntVar(&dailyBatchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
 	cmd.Flags().BoolVar(&skipExisting, "skipExisting", false, "Skip tickers that already exist in the database")
+	cmd.Flags().IntVar(&lookback, "lookback", 0, "Number of days to look back for updates (0 means no filter)")
 	return cmd
 }
 
@@ -109,10 +111,11 @@ func newStatementsCmd() *cobra.Command {
 		halfOnly            bool
 		statementsBatchSize int
 		skipExisting        bool
+		lookback            int
 	)
 
 	cmd := &cobra.Command{
-		Use:   "statements [--tickers TICKER1,TICKER2,...] [--skipTickers TICKER1,TICKER2,...] [--halfOnly]",
+		Use:   "statements [--tickers TICKER1,TICKER2,...] [--skipTickers TICKER1,TICKER2,...] [--halfOnly] [--lookback DAYS] [--batchSize SIZE] [--skipExisting]",
 		Short: "Updates financial statements data for selected tickers",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Validate that halfOnly is only used when tickers is not provided
@@ -143,7 +146,7 @@ func newStatementsCmd() *cobra.Command {
 				skipTickerSlice = strings.Split(skipTickers, ",")
 			}
 
-			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, statementsBatchSize, skipTickerSlice, skipExisting)
+			rowsAffected, err := pipeline.Statements(tickerSlice, halfOnly, statementsBatchSize, skipTickerSlice, skipExisting, lookback)
 			if err != nil {
 				return fmt.Errorf("error updating statements: %w", err)
 			}
@@ -159,6 +162,7 @@ func newStatementsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&halfOnly, "halfOnly", false, "Process only half of the tickers based on current hour (even=first half, odd=second half)")
 	cmd.Flags().IntVar(&statementsBatchSize, "batchSize", 0, "Process tickers in batches of this size (0 means process all at once)")
 	cmd.Flags().BoolVar(&skipExisting, "skipExisting", false, "Skip tickers that already exist in the database")
+	cmd.Flags().IntVar(&lookback, "lookback", 0, "Number of days to look back for updates (0 means no filter)")
 	return cmd
 }
 

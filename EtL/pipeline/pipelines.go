@@ -103,11 +103,13 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 func (p *Pipeline) selectedFundamentals(filter string) ([]string, error) {
 
 	query := "select distinct ticker from fundamentals.selected_fundamentals"
+	query += " " + filter
 	if !p.InTest && os.Getenv("APP_ENV") != "prod" {
 		query += " using sample 20"
 	}
-	query += " " + filter
 	query += " order by ticker;"
+
+	fmt.Println(query)
 
 	res, err := p.DuckDB.GetQueryResults(query)
 	if err != nil {
