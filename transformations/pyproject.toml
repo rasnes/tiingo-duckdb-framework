@@ -20,5 +20,6 @@ dev-dependencies = [
     "ipykernel>=6.29.5",
     "pyright>=1.1.380",
     "pytest>=8.3.3",
+    "python-dotenv>=1.0.1",
     "ruff>=0.6.5",
 ]
