@@ -99,6 +99,7 @@ func (c *TiingoClient) GetStatements(ticker string) ([]byte, error) {
 		fmt.Sprintf("%s/tiingo/fundamentals/%s/statements", c.BaseURL, ticker),
 		true,
 	)
+	fmt.Println(url)
 	if err != nil {
 		return nil, err
 	}

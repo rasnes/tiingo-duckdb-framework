@@ -1,6 +1,8 @@
 duckdb:
   path: "./dev.db"
 
-
-
+tiingo:
+  fundamentals:
+    statements:
+      start_date: "today-1440h" # Last 60 days
 

@@ -27,7 +27,7 @@ tiingo:
   fundamentals:
     daily:
       format: csv
-      start_date: "1995-01-01"
+      start_date: "today-192h" # Last 8 days
       ## OBS: even though the free text parf oof the docs for 2.6.4 Daily Data says columns param
       ## is supported, the request definition for the endpoint does not include it. So, it seems
       ## it is not supported.
@@ -40,7 +40,7 @@ tiingo:
         secFilingWebsite,statementLastUpdated,dailyLastUpdated
     statements:
       format: csv
-      start_date: "1995-01-01"
+      # NB: start_date is set in config.<env>.yaml files, since it is environment specific
 
 
 

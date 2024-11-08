@@ -1,6 +1,7 @@
 duckdb:
   path: "md:stage"
 
-
-
-
+tiingo:
+  fundamentals:
+    statements:
+      start_date: "today-1440h" # Last 60 days
