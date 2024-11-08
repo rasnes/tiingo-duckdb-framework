@@ -179,7 +179,6 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 		return nil, emptyResponses, err
 	}
 
-	// TODO: handle the case of empty validCSVs
 	// Concatenate valid CSVs
 	if len(validCSVs) == 0 {
 		return nil, emptyResponses, nil
@@ -279,8 +278,10 @@ func (p *Pipeline) fetchFundamentalsData(
 			return 0, fmt.Errorf("error fetching %s data: %w", dataType, err)
 		}
 
-		if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
-			return 0, fmt.Errorf("error loading %s data to DB: %w", dataType, err)
+		if len(finalCsv) > 0 {
+			if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+				return 0, fmt.Errorf("error loading %s data to DB: %w", dataType, err)
+			}
 		}
 		totalEmptyResponses = emptyResponses
 		totalProcessed = len(upperCaseTickers) - len(emptyResponses)
@@ -298,8 +299,10 @@ func (p *Pipeline) fetchFundamentalsData(
 				return totalProcessed, fmt.Errorf("error fetching %s data for batch %d-%d: %w", dataType, i, end-1, err)
 			}
 
-			if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
-				return totalProcessed, fmt.Errorf("error loading %s data to DB for batch %d-%d: %w", dataType, i, end-1, err)
+			if len(finalCsv) > 0 {
+				if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+					return totalProcessed, fmt.Errorf("error loading %s data to DB for batch %d-%d: %w", dataType, i, end-1, err)
+				}
 			}
 
 			totalEmptyResponses = append(totalEmptyResponses, emptyResponses...)
