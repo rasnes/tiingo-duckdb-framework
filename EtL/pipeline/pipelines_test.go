@@ -503,230 +503,230 @@ func TestFilterOutSkippedTickers(t *testing.T) {
 }
 
 func TestPipeline_DailyFundamentals_BatchProcessing(t *testing.T) {
-    // Setup test server
-    server := setupTestServer()
-    defer server.Close()
+	// Setup test server
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // Test with batch size of 2
-    count, err := pipeline.DailyFundamentals([]string{"AAPL", "MSFT", "TSLA"}, false, 2, nil, false, 0)
-    assert.NoError(t, err)
-    assert.Equal(t, 3, count)
+	// Test with batch size of 2
+	count, err := pipeline.DailyFundamentals([]string{"AAPL", "MSFT", "TSLA"}, false, 2, nil, false, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, count)
 
-    // Verify all data was loaded despite batching
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify all data was loaded despite batching
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT DISTINCT ticker
         FROM fundamentals.daily
         ORDER BY ticker;
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"AAPL", "MSFT", "TSLA"}, rows["ticker"])
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"AAPL", "MSFT", "TSLA"}, rows["ticker"])
 }
 
 func TestPipeline_DailyFundamentals_SkipTickers(t *testing.T) {
-    server := setupTestServer()
-    defer server.Close()
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // Test skipping specific tickers
-    count, err := pipeline.DailyFundamentals(
-        []string{"AAPL", "MSFT", "TSLA"},
-        false,
-        0,
-        []string{"msft", "TSla"}, // Test case-insensitive skipping
-        false,
-        0,
-    )
-    assert.NoError(t, err)
-    assert.Equal(t, 1, count)
+	// Test skipping specific tickers
+	count, err := pipeline.DailyFundamentals(
+		[]string{"AAPL", "MSFT", "TSLA"},
+		false,
+		0,
+		[]string{"msft", "TSla"}, // Test case-insensitive skipping
+		false,
+		0,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
 
-    // Verify only non-skipped ticker was processed
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify only non-skipped ticker was processed
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT DISTINCT ticker
         FROM fundamentals.daily
         ORDER BY ticker;
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"AAPL"}, rows["ticker"])
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"AAPL"}, rows["ticker"])
 }
 
 func TestPipeline_DailyFundamentals_SkipExisting(t *testing.T) {
-    server := setupTestServer()
-    defer server.Close()
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // First insertion
-    _, err = pipeline.DailyFundamentals([]string{"AAPL"}, false, 0, nil, false, 0)
-    assert.NoError(t, err)
+	// First insertion
+	_, err = pipeline.DailyFundamentals([]string{"AAPL"}, false, 0, nil, false, 0)
+	assert.NoError(t, err)
 
-    // Second insertion with skipExisting=true
-    count, err := pipeline.DailyFundamentals(
-        []string{"AAPL", "MSFT", "TSLA"},
-        false,
-        0,
-        nil,
-        true,
-        0,
-    )
-    assert.NoError(t, err)
-    assert.Equal(t, 2, count) // Should only process MSFT and TSLA
+	// Second insertion with skipExisting=true
+	count, err := pipeline.DailyFundamentals(
+		[]string{"AAPL", "MSFT", "TSLA"},
+		false,
+		0,
+		nil,
+		true,
+		0,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count) // Should only process MSFT and TSLA
 
-    // Verify all tickers are present
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify all tickers are present
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT DISTINCT ticker
         FROM fundamentals.daily
         ORDER BY ticker;
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"AAPL", "MSFT", "TSLA"}, rows["ticker"])
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"AAPL", "MSFT", "TSLA"}, rows["ticker"])
 }
 
 func TestPipeline_DailyFundamentals_Lookback(t *testing.T) {
-    server := setupTestServer()
-    defer server.Close()
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // Test with lookback period
-    count, err := pipeline.DailyFundamentals(nil, false, 0, nil, false, 7)
-    assert.NoError(t, err)
-    assert.Greater(t, count, 0) // Should process tickers updated within last 7 days
+	// Test with lookback period
+	count, err := pipeline.DailyFundamentals(nil, false, 0, nil, false, 7)
+	assert.NoError(t, err)
+	assert.Greater(t, count, 0) // Should process tickers updated within last 7 days
 
-    // Verify data was loaded
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify data was loaded
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT DISTINCT ticker
         FROM fundamentals.daily
         ORDER BY ticker;
     `)
-    assert.NoError(t, err)
-    assert.NotEmpty(t, rows["ticker"])
+	assert.NoError(t, err)
+	assert.NotEmpty(t, rows["ticker"])
 }
 
 func TestPipeline_Statements_BatchAndSkip(t *testing.T) {
-    server := setupTestServer()
-    defer server.Close()
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // Test combination of batch processing and skipping
-    count, err := pipeline.Statements(
-        []string{"AAPL", "MSFT", "TSLA"},
-        false,
-        2,                  // batch size
-        []string{"MSFT"},   // skip MSFT
-        false,
-        0,
-    )
-    assert.NoError(t, err)
-    assert.Equal(t, 2, count) // Should process AAPL and TSLA in batches
+	// Test combination of batch processing and skipping
+	count, err := pipeline.Statements(
+		[]string{"AAPL", "MSFT", "TSLA"},
+		false,
+		2,                // batch size
+		[]string{"MSFT"}, // skip MSFT
+		false,
+		0,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count) // Should process AAPL and TSLA in batches
 
-    // Verify correct tickers were processed
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify correct tickers were processed
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT DISTINCT ticker
         FROM fundamentals.statements
         ORDER BY ticker;
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"AAPL", "TSLA"}, rows["ticker"])
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"AAPL", "TSLA"}, rows["ticker"])
 }
 
 func TestPipeline_DailyFundamentals_AllNoneResponses(t *testing.T) {
-    server := setupTestServer()
-    defer server.Close()
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // Test with tickers that will return "None"
-    tickers := []string{"NODAILY", "NODATA"}
-    count, err := pipeline.DailyFundamentals(tickers, false, 1, nil, false, 0) // batch size of 1 to ensure multiple requests
-    assert.NoError(t, err)
-    assert.Equal(t, 0, count) // Should process 0 tickers since all returned "None"
+	// Test with tickers that will return "None"
+	tickers := []string{"NODAILY", "NODATA"}
+	count, err := pipeline.DailyFundamentals(tickers, false, 1, nil, false, 0) // batch size of 1 to ensure multiple requests
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count) // Should process 0 tickers since all returned "None"
 
-    // Verify no data was loaded
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify no data was loaded
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT COUNT(*) as count 
         FROM fundamentals.daily;
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"0"}, rows["count"])
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"0"}, rows["count"])
 
-    // Verify we can still successfully process other tickers after receiving "None" responses
-    count, err = pipeline.DailyFundamentals([]string{"AAPL"}, false, 0, nil, false, 0)
-    assert.NoError(t, err)
-    assert.Equal(t, 1, count)
+	// Verify we can still successfully process other tickers after receiving "None" responses
+	count, err = pipeline.DailyFundamentals([]string{"AAPL"}, false, 0, nil, false, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
 
-    // Verify only AAPL data was loaded
-    rows, err = pipeline.DuckDB.GetQueryResults(`
+	// Verify only AAPL data was loaded
+	rows, err = pipeline.DuckDB.GetQueryResults(`
         SELECT DISTINCT ticker
         FROM fundamentals.daily
         ORDER BY ticker;
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"AAPL"}, rows["ticker"])
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"AAPL"}, rows["ticker"])
 }
 
 func TestPipeline_Statements_SkipExistingAndLookback(t *testing.T) {
-    server := setupTestServer()
-    defer server.Close()
+	server := setupTestServer()
+	defer server.Close()
 
-    pipeline, cleanup := setupTestPipeline(t, server, nil)
-    defer cleanup()
+	pipeline, cleanup := setupTestPipeline(t, server, nil)
+	defer cleanup()
 
-    // First populate meta table
-    _, err := pipeline.UpdateMetadata()
-    assert.NoError(t, err)
+	// First populate meta table
+	_, err := pipeline.UpdateMetadata()
+	assert.NoError(t, err)
 
-    // First insertion
-    _, err = pipeline.Statements([]string{"AAPL"}, false, 0, nil, false, 0)
-    assert.NoError(t, err)
+	// First insertion
+	_, err = pipeline.Statements([]string{"AAPL"}, false, 0, nil, false, 0)
+	assert.NoError(t, err)
 
-    // Second insertion with skipExisting and lookback
-    count, err := pipeline.Statements(
-        nil,    // use selected_fundamentals
-        false,
-        0,
-        nil,
-        true,   // skip existing
-        7,      // lookback days
-    )
-    assert.NoError(t, err)
-    assert.Greater(t, count, 0)
+	// Second insertion with skipExisting and lookback
+	count, err := pipeline.Statements(
+		nil, // use selected_fundamentals
+		false,
+		0,
+		nil,
+		true, // skip existing
+		7,    // lookback days
+	)
+	assert.NoError(t, err)
+	assert.Greater(t, count, 0)
 
-    // Verify AAPL wasn't processed again
-    rows, err := pipeline.DuckDB.GetQueryResults(`
+	// Verify AAPL wasn't processed again
+	rows, err := pipeline.DuckDB.GetQueryResults(`
         SELECT COUNT(*) as count
         FROM (
             SELECT ticker, date
@@ -735,8 +735,8 @@ func TestPipeline_Statements_SkipExistingAndLookback(t *testing.T) {
             GROUP BY ticker, date
         );
     `)
-    assert.NoError(t, err)
-    assert.Equal(t, []string{"2"}, rows["count"]) // Should have 2 dates for AAPL (from test server response)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"2"}, rows["count"]) // Should have 2 dates for AAPL (from test server response)
 }
 
 func TestPipeline_DailyEndOfDay(t *testing.T) {
