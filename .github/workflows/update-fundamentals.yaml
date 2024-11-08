@@ -1,0 +1,54 @@
+name: update-fundamentals
+# This is a reusable workflow that can be called by other workflows
+
+on:
+  workflow_call:
+    inputs:
+      schedule:
+        required: true
+        type: string
+        description: 'Cron schedule for the workflow'
+      environment:
+        required: true
+        type: string
+        enum: ['prod', 'stage']
+        description: 'Environment to run in (prod/stage)'
+      fundamentals_type:
+        required: true
+        type: string
+        enum: ['daily', 'statements']
+        description: 'Type of fundamentals job to run (daily/statements)'
+
+jobs:
+  run-fundamentals:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('EtL/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: cd EtL && go mod download
+
+      - name: Run main.go
+        run: |
+          cd EtL
+          CGO_ENABLED=1 go run main.go fundamentals ${{ inputs.fundamentals_type }} --batchSize 100 --lookback 8 --skipTickers CGI,CLUB,LJAQ,MDCA,MILL,SAAS,VTG,EVA,HOS,ISLE,ISNS,CKH,MTD,RGP,WWR
+        env:
+          TIINGO_TOKEN: ${{ secrets.TIINGO_TOKEN }}
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          APP_ENV: ${{ vars.APP_ENV }}
