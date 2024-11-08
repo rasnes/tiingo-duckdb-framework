@@ -61,13 +61,26 @@ func AddTickerColumn(csvData []byte, ticker string) ([]byte, error) {
 // It uses the first CSV file as the header and appends the remaining CSV files.
 func ConcatCSVs(csvs [][]byte) ([]byte, error) {
 	if len(csvs) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("received empty CSV data")
 	}
 
-	parts := csvs
-	if len(parts) == 1 {
-		return parts[0], nil // Single CSV case
+	// Filter out empty CSVs
+	var nonEmptyCSVs [][]byte
+	for _, csv := range csvs {
+		if len(bytes.TrimSpace(csv)) > 0 {
+			nonEmptyCSVs = append(nonEmptyCSVs, csv)
+		}
 	}
+
+	if len(nonEmptyCSVs) == 0 {
+		return nil, fmt.Errorf("all CSV inputs were empty")
+	}
+
+	if len(nonEmptyCSVs) == 1 {
+		return nonEmptyCSVs[0], nil // Single CSV case
+	}
+
+	parts := nonEmptyCSVs
 
 	var buffer bytes.Buffer
 	writer := csv.NewWriter(&buffer)

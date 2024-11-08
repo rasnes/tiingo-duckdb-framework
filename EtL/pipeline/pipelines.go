@@ -179,7 +179,6 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 		return nil, emptyResponses, err
 	}
 
-	// TODO: handle the case of empty validCSVs
 	// Concatenate valid CSVs
 	if len(validCSVs) == 0 {
 		return nil, emptyResponses, nil

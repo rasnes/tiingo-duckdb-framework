@@ -146,6 +146,14 @@ CN000000000002,600000,Shanghai Pudong Development Bank,True,False,Financial Serv
 2024-06-30,2024,3,cashFlow,freeCashFlow,7500000000.0`
 			_, _ = w.Write([]byte(csvContent))
 
+		case "/tiingo/fundamentals/NODAILY/daily":
+			w.Header().Set("Content-Type", "text/csv")
+			_, _ = w.Write([]byte("None"))
+
+		case "/tiingo/fundamentals/NODATA/daily":
+			w.Header().Set("Content-Type", "text/csv")
+			_, _ = w.Write([]byte("None"))
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte("Not found"))
@@ -648,6 +656,46 @@ func TestPipeline_Statements_BatchAndSkip(t *testing.T) {
     `)
     assert.NoError(t, err)
     assert.Equal(t, []string{"AAPL", "TSLA"}, rows["ticker"])
+}
+
+func TestPipeline_DailyFundamentals_AllNoneResponses(t *testing.T) {
+    server := setupTestServer()
+    defer server.Close()
+
+    pipeline, cleanup := setupTestPipeline(t, server, nil)
+    defer cleanup()
+
+    // First populate meta table
+    _, err := pipeline.UpdateMetadata()
+    assert.NoError(t, err)
+
+    // Test with tickers that will return "None"
+    tickers := []string{"NODAILY", "NODATA"}
+    count, err := pipeline.DailyFundamentals(tickers, false, 1, nil, false, 0) // batch size of 1 to ensure multiple requests
+    assert.NoError(t, err)
+    assert.Equal(t, 0, count) // Should process 0 tickers since all returned "None"
+
+    // Verify no data was loaded
+    rows, err := pipeline.DuckDB.GetQueryResults(`
+        SELECT COUNT(*) as count 
+        FROM fundamentals.daily;
+    `)
+    assert.NoError(t, err)
+    assert.Equal(t, []string{"0"}, rows["count"])
+
+    // Verify we can still successfully process other tickers after receiving "None" responses
+    count, err = pipeline.DailyFundamentals([]string{"AAPL"}, false, 0, nil, false, 0)
+    assert.NoError(t, err)
+    assert.Equal(t, 1, count)
+
+    // Verify only AAPL data was loaded
+    rows, err = pipeline.DuckDB.GetQueryResults(`
+        SELECT DISTINCT ticker
+        FROM fundamentals.daily
+        ORDER BY ticker;
+    `)
+    assert.NoError(t, err)
+    assert.Equal(t, []string{"AAPL"}, rows["ticker"])
 }
 
 func TestPipeline_Statements_SkipExistingAndLookback(t *testing.T) {
