@@ -221,6 +221,10 @@ func setupTestConfig(t *testing.T) *config.Config {
 
 	cfg.DuckDB.ConnInitFnQueries = append(updatedQueries, testSQLFiles...)
 
+	// Add required configuration for fundamentals statements
+	cfg.Tiingo.Fundamentals.Statements.StartDate = "2024-01-01"
+	cfg.Tiingo.Fundamentals.Daily.StartDate = "2024-01-01"
+
 	return cfg
 }
 
