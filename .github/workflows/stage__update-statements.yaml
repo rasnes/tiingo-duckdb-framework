@@ -1,16 +1,9 @@
-name: stage__update-fundamentals
+name: stage__update-statements
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-daily:
-    uses: ./.github/workflows/update-fundamentals.yaml
-    with:
-      environment: 'stage'
-      fundamentals_type: 'daily'
-    secrets: inherit
-
   run-statements:
     uses: ./.github/workflows/update-fundamentals.yaml
     with:

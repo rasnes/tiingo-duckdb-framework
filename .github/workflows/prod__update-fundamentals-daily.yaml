@@ -1,0 +1,14 @@
+name: prod__update-fundamentals-daily
+
+on:
+  schedule:
+    - cron: '5 6 * * 6' # Saturday morning
+  workflow_dispatch:
+
+jobs:
+  run-daily:
+    uses: ./.github/workflows/update-fundamentals.yaml
+    with:
+      environment: 'prod'
+      fundamentals_type: 'daily'
+    secrets: inherit
