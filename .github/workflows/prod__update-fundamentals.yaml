@@ -9,7 +9,6 @@ jobs:
   run-daily:
     uses: ./.github/workflows/update-fundamentals.yaml
     with:
-      schedule: '0 5 * * 1-5'
       environment: 'prod'
       fundamentals_type: 'daily'
     secrets: inherit
@@ -17,7 +16,6 @@ jobs:
   run-statements:
     uses: ./.github/workflows/update-fundamentals.yaml
     with:
-      schedule: '0 5 * * 1-5'
       environment: 'prod'
       fundamentals_type: 'statements'
     secrets: inherit

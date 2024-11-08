@@ -4,10 +4,6 @@ name: update-fundamentals
 on:
   workflow_call:
     inputs:
-      schedule:
-        required: true
-        type: string
-        description: 'Cron schedule for the workflow'
       environment:
         required: true
         type: string
