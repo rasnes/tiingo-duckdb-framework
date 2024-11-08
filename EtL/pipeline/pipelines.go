@@ -100,11 +100,13 @@ func (p *Pipeline) DailyEndOfDay() (int, error) {
 	return len(tickers), nil
 }
 
-func (p *Pipeline) selectedFundamentals() ([]string, error) {
-	query := "select ticker from fundamentals.selected_fundamentals"
+func (p *Pipeline) selectedFundamentals(filter string) ([]string, error) {
+
+	query := "select distinct ticker from fundamentals.selected_fundamentals"
 	if !p.InTest && os.Getenv("APP_ENV") != "prod" {
 		query += " using sample 20"
 	}
+	query += " " + filter
 	query += " order by ticker;"
 
 	res, err := p.DuckDB.GetQueryResults(query)
@@ -190,6 +192,7 @@ func fetchCSVs(tickers []string, fetch csvPerTicker) ([]byte, []string, error) {
 	return finalCsv, emptyResponses, nil
 }
 
+// TODO: should document all parameters for this method, it has many.
 // TODO: should add some integration tests for this method, with batchsize, skipExisting, and skipTickers populated with different values.
 // fetchFundamentalsData handles fetching and loading fundamentals data (daily or statements)
 // for the specified tickers into DuckDB. If no tickers provided, uses selectedFundamentals().
@@ -203,17 +206,27 @@ func (p *Pipeline) fetchFundamentalsData(
 	batchSize int,
 	skipTickers []string,
 	skipExisting bool,
+	filter string,
 ) (int, error) {
 	// Get tickers if none provided
+	var err error
 	if len(tickers) == 0 {
-		var err error
-		tickers, err = p.selectedFundamentals()
-		if err != nil {
-			return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+		if filter != "" {
+			// Look up tickers with filter on the data
+			tickers, err = p.selectedFundamentals(filter)
+			if err != nil {
+				return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+			}
+		} else {
+			// Look up all tickers in selected_fundamentals
+			tickers, err = p.selectedFundamentals("")
+			if err != nil {
+				return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+			}
 		}
 	}
 	// Make sure we have the latest supported tickers
-	err := p.supportedTickers()
+	err = p.supportedTickers()
 	if err != nil {
 		return 0, fmt.Errorf("error getting supported tickers: %v", err)
 	}
@@ -319,12 +332,22 @@ func filterOutSkippedTickers(tickers []string, skipTickers []string) []string {
 	})
 }
 
-func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize, skipTickers, skipExisting)
+func (p *Pipeline) DailyFundamentals(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool, lookback int) (int, error) {
+	var filter string
+	if lookback > 0 {
+		// TODO: add tests for this functionality
+		filter = fmt.Sprintf("where dailyLastUpdated >= current_date - interval '%d days'", lookback)
+	}
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetDailyFundamentals, "fundamentals.daily", batchSize, skipTickers, skipExisting, filter)
 }
 
-func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool) (int, error) {
-	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize, skipTickers, skipExisting)
+func (p *Pipeline) Statements(tickers []string, half bool, batchSize int, skipTickers []string, skipExisting bool, lookback int) (int, error) {
+	var filter string
+	if lookback > 0 {
+		// TODO: add tests for this functionality
+		filter = fmt.Sprintf("where statementLastUpdated >= current_date - interval '%d days'", lookback)
+	}
+	return p.fetchFundamentalsData(tickers, half, p.TiingoClient.GetStatements, "fundamentals.statements", batchSize, skipTickers, skipExisting, filter)
 }
 
 func (p *Pipeline) UpdateMetadata() (int, error) {
