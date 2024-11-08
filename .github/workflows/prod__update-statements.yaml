@@ -1,0 +1,14 @@
+name: prod__update-statements
+
+on:
+  schedule:
+    - cron: '5 5 * * 6' # Saturday morning
+  workflow_dispatch:
+
+jobs:
+  run-statements:
+    uses: ./.github/workflows/update-fundamentals.yaml
+    with:
+      environment: 'prod'
+      fundamentals_type: 'statements'
+    secrets: inherit

@@ -7,12 +7,10 @@ on:
       environment:
         required: true
         type: string
-        enum: ['prod', 'stage']
         description: 'Environment to run in (prod/stage)'
       fundamentals_type:
         required: true
         type: string
-        enum: ['daily', 'statements']
         description: 'Type of fundamentals job to run (daily/statements)'
 
 jobs:
