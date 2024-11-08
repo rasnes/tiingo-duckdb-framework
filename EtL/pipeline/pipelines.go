@@ -109,8 +109,6 @@ func (p *Pipeline) selectedFundamentals(filter string) ([]string, error) {
 	}
 	query += " order by ticker;"
 
-	fmt.Println(query)
-
 	res, err := p.DuckDB.GetQueryResults(query)
 	if err != nil {
 		return nil, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
