@@ -20,6 +20,7 @@ cover/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
 # Environments
 .env
@@ -51,4 +52,4 @@ DATA.md
 .aider*
 .sesskey
 sonnet
-# openrouter/
+openrouter/
