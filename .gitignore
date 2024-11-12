@@ -37,7 +37,7 @@ venv.bak/
 
 # Data
 *.csv
-*.db
+*.db*
 *.duckdb
 *.wal
 DATA.md
@@ -49,7 +49,7 @@ DATA.md
 .streamlit/secrets.toml
 
 # Build tools
-.aider*
+*.aider*
 .sesskey
 sonnet
 openrouter/
