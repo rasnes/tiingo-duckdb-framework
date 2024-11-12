@@ -23,10 +23,20 @@ all_tickers = get_all_tickers()
 col1, col2 = st.columns(2)
 
 with col1:
-    date_from = st.date_input("From", value=datetime.date(2024, 1, 1))
+    date_from = st.date_input(
+        label="From",
+        value=datetime.date(2024, 1, 1),
+        min_value=datetime.date(1995, 1, 1),
+        max_value=datetime.datetime.now()
+    )
 
 with col2:
-    date_to = st.date_input("To", value=datetime.datetime.now())
+    date_to = st.date_input(
+        label="To",
+        value=datetime.datetime.now(),
+        min_value=datetime.date(1995, 1, 1),
+        max_value=datetime.datetime.now()
+    )
 
 # Multiselect widget
 selected_tickers = st.multiselect(
