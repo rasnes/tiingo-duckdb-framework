@@ -3,7 +3,13 @@
 # Temporary ignores
 
 ## When working with EtL
+# dashboard/
+# fundamentals/
+# init-db/
+# transformations/
+
+## When working with transformations
 dashboard/
 fundamentals/
 init-db/
-transformations/
+EtL/
