@@ -21,7 +21,7 @@ create or replace table fundamentals.wide_statements as (
       on pivoted.ticker = upper(meta.ticker)
   ), joined as (
     select *
-    from main.with_index as da -- TODO: replace with daily adjusted enriched (see below)
+    from main.with_index as da
     asof inner join pivoted_with_meta as pivoted -- inner join due to not interested in tickers without fundamentals
       on da.ticker = pivoted.ticker and da.date >= pivoted.safe_release_date
   )
@@ -50,4 +50,4 @@ create or replace table fundamentals.wide_statements as (
 )
 
 
--- TODO: daily_adjusted enriched: index for normalization, only NYSE and NASDAQ stocks
+-- TODO: daily_adjusted enriched: add SMA
