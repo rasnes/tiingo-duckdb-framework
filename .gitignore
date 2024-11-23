@@ -53,3 +53,6 @@ DATA.md
 .sesskey
 sonnet
 openrouter/
+
+# Node
+node_modules/
