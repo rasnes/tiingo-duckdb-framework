@@ -40,13 +40,6 @@ create or replace table fundamentals.wide_statements as (
     isActive,
   )
   from joined
-  -- Sample one day per month for each ticker
-  -- 16th of the month is proposed since it will be the first
-  -- safe_release_date after fiscal months that end on the 31st.
-  where day(date) >= 17
-  qualify row_number() over (
-    partition by ticker, year(date), month(date) order by date
-  ) = 1
 )
 
 
