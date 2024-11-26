@@ -113,6 +113,7 @@ func (p *Pipeline) selectedFundamentals(filter string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
 	}
+	fmt.Println("res_tickers", res)
 
 	tickers, ok := res["ticker"]
 	if !ok {
@@ -214,13 +215,13 @@ func (p *Pipeline) fetchFundamentalsData(
 			// Look up tickers with filter on the data
 			tickers, err = p.selectedFundamentals(filter)
 			if err != nil {
-				return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+				return 0, fmt.Errorf("error getting selected fundamentals with filter: %w", err)
 			}
 		} else {
 			// Look up all tickers in selected_fundamentals
 			tickers, err = p.selectedFundamentals("")
 			if err != nil {
-				return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+				return 0, fmt.Errorf("error getting selected fundamentals without filter: %w", err)
 			}
 		}
 	}
@@ -385,6 +386,29 @@ func (p *Pipeline) UpdateMetadata() (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error getting rows affected: %w", err)
 	}
+
+// 	// TODO: remove prints
+// 	m, _ := p.DuckDB.GetQueryResults("select * from fundamentals.meta")
+// 	fmt.Println("meta", m)
+
+// 	st, _ := p.DuckDB.GetQueryResults("select * from supported_tickers")
+// 	fmt.Println("supported_tickers", st)
+
+// 	sf, _ := p.DuckDB.GetQueryResults(`
+// with available_eod as (
+// select *
+// from fundamentals.meta
+// semi join selected_us_tickers
+// 	on upper(fundamentals.meta.ticker) = upper(selected_us_tickers.ticker)
+// ), deduped as (
+// select *
+// from available_eod
+// qualify row_number() over (partition by ticker order by isActive desc, statementLastUpdated desc) = 1
+// )
+// select * from deduped
+// where dailyLastUpdated is not NULL
+// `)
+// 	fmt.Println("selected_fundamentls", sf)
 
 	return int(rowsAffected), nil
 }
