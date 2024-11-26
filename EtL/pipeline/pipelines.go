@@ -113,6 +113,7 @@ func (p *Pipeline) selectedFundamentals(filter string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting fundamentals.selected_fundamentals results: %w", err)
 	}
+	fmt.Println("res_tickers", res)
 
 	tickers, ok := res["ticker"]
 	if !ok {
@@ -214,13 +215,13 @@ func (p *Pipeline) fetchFundamentalsData(
 			// Look up tickers with filter on the data
 			tickers, err = p.selectedFundamentals(filter)
 			if err != nil {
-				return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+				return 0, fmt.Errorf("error getting selected fundamentals with filter: %w", err)
 			}
 		} else {
 			// Look up all tickers in selected_fundamentals
 			tickers, err = p.selectedFundamentals("")
 			if err != nil {
-				return 0, fmt.Errorf("error getting selected fundamentals: %w", err)
+				return 0, fmt.Errorf("error getting selected fundamentals without filter: %w", err)
 			}
 		}
 	}
@@ -300,7 +301,12 @@ func (p *Pipeline) fetchFundamentalsData(
 			}
 
 			if len(finalCsv) > 0 {
-				if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+				finalCsvDeduped, err := load.RemoveDuplicateRows(finalCsv)
+				if err != nil {
+					return totalProcessed, fmt.Errorf("error removing duplicates from %s data for batch %d-%d: %w", dataType, i, end-1, err)
+				}
+
+				if err := p.DuckDB.LoadCSV(finalCsvDeduped, tableName, true); err != nil {
 					return totalProcessed, fmt.Errorf("error loading %s data to DB for batch %d-%d: %w", dataType, i, end-1, err)
 				}
 			}

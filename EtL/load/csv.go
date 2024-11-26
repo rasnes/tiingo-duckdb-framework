@@ -153,3 +153,56 @@ func ConcatCSVs(csvs [][]byte) ([]byte, error) {
 
 	return buffer.Bytes(), nil
 }
+
+// RemoveDuplicateRows removes duplicate rows from a CSV byte slice while preserving the header
+// and keeping the first occurrence of any duplicate row
+func RemoveDuplicateRows(csvData []byte) ([]byte, error) {
+	if len(bytes.TrimSpace(csvData)) == 0 {
+		return nil, fmt.Errorf("received empty CSV data")
+	}
+
+	reader := csv.NewReader(bytes.NewReader(csvData))
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+
+	// Read and write the header
+	header, err := reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV header: %w", err)
+	}
+
+	if err := writer.Write(header); err != nil {
+		return nil, fmt.Errorf("failed to write CSV header: %w", err)
+	}
+
+	// Use map to track unique rows
+	seen := make(map[string]bool)
+
+	// Process all records
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read CSV record: %w", err)
+		}
+
+		// Create a string key from the record
+		key := string(bytes.Join(bytes.Fields([]byte(fmt.Sprintf("%q", record))), []byte{0}))
+
+		if !seen[key] {
+			seen[key] = true
+			if err := writer.Write(record); err != nil {
+				return nil, fmt.Errorf("failed to write CSV record: %w", err)
+			}
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, fmt.Errorf("failed to flush CSV writer: %w", err)
+	}
+
+	return buffer.Bytes(), nil
+}

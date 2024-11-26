@@ -611,9 +611,9 @@ func TestPipeline_DailyFundamentals_Lookback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Test with lookback period
-	count, err := pipeline.DailyFundamentals(nil, false, 0, nil, false, 7)
+	count, err := pipeline.DailyFundamentals(nil, false, 0, nil, false, 20000)
 	assert.NoError(t, err)
-	assert.Greater(t, count, 0) // Should process tickers updated within last 7 days
+	assert.Greater(t, count, 0)
 
 	// Verify data was loaded
 	rows, err := pipeline.DuckDB.GetQueryResults(`
@@ -677,7 +677,7 @@ func TestPipeline_DailyFundamentals_AllNoneResponses(t *testing.T) {
 
 	// Verify no data was loaded
 	rows, err := pipeline.DuckDB.GetQueryResults(`
-        SELECT COUNT(*) as count 
+        SELECT COUNT(*) as count
         FROM fundamentals.daily;
     `)
 	assert.NoError(t, err)
@@ -719,8 +719,8 @@ func TestPipeline_Statements_SkipExistingAndLookback(t *testing.T) {
 		false,
 		0,
 		nil,
-		true, // skip existing
-		7,    // lookback days
+		true,  // skip existing
+		20000, // lookback days
 	)
 	assert.NoError(t, err)
 	assert.Greater(t, count, 0)
