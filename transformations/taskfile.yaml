@@ -11,7 +11,7 @@ vars:
   PWD:
     sh: pwd
   DAGSTER_HOME: "{{.PWD}}/dagster"
-  DAGSTER_DEFAULT_FILE: src/dagster_play.py
+  DAGSTER_DEFAULT_FILE: src/catboost.py
 
 dotenv: ['.env']
 
