@@ -1,8 +1,9 @@
 package load
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConcatCSVs(t *testing.T) {
@@ -178,6 +179,98 @@ func TestAddTickerColumn(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedOutput, output)
+			}
+		})
+	}
+}
+
+func TestRemoveDuplicateRows(t *testing.T) {
+	tests := []struct {
+		name           string
+		csvData        []byte
+		expectedOutput []byte
+		expectedError  string
+	}{
+		{
+			name: "No duplicates",
+			csvData: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+2023-06-30,2023,2,overview,score,4.0
+2023-07-01,2023,2,foo,bar,99.0`),
+			expectedOutput: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+2023-06-30,2023,2,overview,score,4.0
+2023-07-01,2023,2,foo,bar,99.0
+`),
+			expectedError: "",
+		},
+		{
+			name: "With duplicates",
+			csvData: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+2023-03-31,2023,1,overview,score,3.0
+2023-06-30,2023,2,overview,score,4.0`),
+			expectedOutput: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+2023-06-30,2023,2,overview,score,4.0
+`),
+			expectedError: "",
+		},
+		{
+			name: "All rows duplicate",
+			csvData: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+2023-03-31,2023,1,overview,score,3.0`),
+			expectedOutput: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+`),
+			expectedError: "",
+		},
+		{
+			name:           "Empty CSV",
+			csvData:        []byte(``),
+			expectedOutput: nil,
+			expectedError:  "received empty CSV data",
+		},
+		{
+			name: "Only header",
+			csvData: []byte(`date,year,quarter,type,metric,value
+`),
+			expectedOutput: []byte(`date,year,quarter,type,metric,value
+`),
+			expectedError: "",
+		},
+		{
+			name: "Invalid CSV format",
+			csvData: []byte(`date,year,quarter,type,metric,value
+2023-03-31,2023,1,overview,score,3.0
+2023-03-31,2023,1,overview,score,3.0,extra`),
+			expectedOutput: nil,
+			expectedError:  "failed to read CSV record",
+		},
+		{
+			name: "Duplicates with special characters",
+			csvData: []byte(`date,name,description
+2023-03-31,"Smith, John","Description, with, commas"
+2023-03-31,"Smith, John","Description, with, commas"
+2023-06-30,"Doe, Jane","Another, description"`),
+			expectedOutput: []byte(`date,name,description
+2023-03-31,"Smith, John","Description, with, commas"
+2023-06-30,"Doe, Jane","Another, description"
+`),
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := RemoveDuplicateRows(tt.csvData)
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, string(tt.expectedOutput), string(output))
 			}
 		})
 	}

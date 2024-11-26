@@ -301,7 +301,12 @@ func (p *Pipeline) fetchFundamentalsData(
 			}
 
 			if len(finalCsv) > 0 {
-				if err := p.DuckDB.LoadCSV(finalCsv, tableName, true); err != nil {
+				finalCsvDeduped, err := load.RemoveDuplicateRows(finalCsv)
+				if err != nil {
+					return totalProcessed, fmt.Errorf("error removing duplicates from %s data for batch %d-%d: %w", dataType, i, end-1, err)
+				}
+
+				if err := p.DuckDB.LoadCSV(finalCsvDeduped, tableName, true); err != nil {
 					return totalProcessed, fmt.Errorf("error loading %s data to DB for batch %d-%d: %w", dataType, i, end-1, err)
 				}
 			}
@@ -386,29 +391,6 @@ func (p *Pipeline) UpdateMetadata() (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error getting rows affected: %w", err)
 	}
-
-// 	// TODO: remove prints
-// 	m, _ := p.DuckDB.GetQueryResults("select * from fundamentals.meta")
-// 	fmt.Println("meta", m)
-
-// 	st, _ := p.DuckDB.GetQueryResults("select * from supported_tickers")
-// 	fmt.Println("supported_tickers", st)
-
-// 	sf, _ := p.DuckDB.GetQueryResults(`
-// with available_eod as (
-// select *
-// from fundamentals.meta
-// semi join selected_us_tickers
-// 	on upper(fundamentals.meta.ticker) = upper(selected_us_tickers.ticker)
-// ), deduped as (
-// select *
-// from available_eod
-// qualify row_number() over (partition by ticker order by isActive desc, statementLastUpdated desc) = 1
-// )
-// select * from deduped
-// where dailyLastUpdated is not NULL
-// `)
-// 	fmt.Println("selected_fundamentls", sf)
 
 	return int(rowsAffected), nil
 }
