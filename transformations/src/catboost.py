@@ -27,7 +27,7 @@ def duckdb_resource(init_context):
         data_dir = Path("src")
         data_dir.mkdir(exist_ok=True)
         return {
-            "database": str(data_dir / "prod_copy_2024-11-08.duckdb"),  # Local file-based database
+            "database": str(data_dir / "prod_copy_2024-11-08.db"),  # Local file-based database
             "schema": "main",
             "access_mode": "READ_WRITE",
         }
@@ -41,26 +41,12 @@ def duckdb_resource(init_context):
 def duckdb_query_polars(sql: str, db_config: dict[str, str]) -> pl.DataFrame:
     """Query a DuckDB database and return the result as a Polars DataFrame """
     con = duckdb.connect(database=db_config["database"], read_only=True)
-    df = con.query(sql).pl()
-    con.close()
-    return df
-
-
-def duckdb_query_arrow(sql: str, db_config: dict[str, str]) -> pa.Table:
-    """Query a DuckDB database and return the result as a PyArrow Table"""
-    con = duckdb.connect(database=db_config["database"], read_only=True)
-    table = con.query(sql).arrow()
-    con.close()
-    return table
-
-def duckdb_query_pandas(sql: str, db_config: dict[str, str]) -> pd.DataFrame:
-    """Query a DuckDB database and return the result as a Pandas DataFrame"""
-    con = duckdb.connect(database=db_config["database"], read_only=True)
     try:
-        df = con.query(sql).df()
+        df = con.query(sql).pl()
         return df
     finally:
         con.close()
+
 
 def duckdb_query(sql: str, db_config: dict[str, str]) -> None:
     """Query a DuckDB database to create macros, views and tables"""
@@ -121,7 +107,7 @@ def view_wide_with_combined_metrics(context: AssetExecutionContext) -> None:
     required_resource_keys={"duckdb_config"},
     deps=[view_wide_with_combined_metrics]
 )
-def view_excess_returns(context: AssetExecutionContext) -> None:
+def table_excess_returns(context: AssetExecutionContext) -> None:
     db_config = context.resources.duckdb_config
     query_duckdb_file(Path("src/sql/4_excess_returns.sql"), db_config)
 
@@ -130,7 +116,7 @@ def view_excess_returns(context: AssetExecutionContext) -> None:
 
 @asset(
     required_resource_keys={"duckdb_config"},
-    deps=[view_excess_returns]
+    deps=[table_excess_returns]
 )
 def excess_returns(context: AssetExecutionContext) -> Output:
     db_config = context.resources.duckdb_config

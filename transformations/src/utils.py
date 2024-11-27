@@ -9,6 +9,9 @@ from catboost import CatBoostRegressor, Pool
 import matplotlib.pyplot as plt
 import shap
 
+# TODO: clean up methods and use easier to read pandas (even consier polars)
+# TODO: add unit tests.
+
 class PrepData:
     """Prepares data from DuckDB for training."""
 
@@ -18,15 +21,15 @@ class PrepData:
         self.pred_col: str = pred_col
         self.seed: int = seed
         self._all_exclude_cols: Set[str] = {
-            'date', 'name',
+            'name',
             'excess_return_ln_6m', 'excess_return_ln_12m',
             'excess_return_ln_24m', 'excess_return_ln_36m',
         }
-        self._model_exclude_cols: Set[str] = self._all_exclude_cols | {'ticker'}
+        self._model_exclude_cols: Set[str] = self._all_exclude_cols | {'ticker', 'date'}
         self._na_fill_value: int = -999999999
         self.categorical_feature_indices: np.ndarray
         self.df_preds: pd.DataFrame
-        self.df_excess_returns: pd.DataFrame
+        self.df_excess_returns: pd.DataFrame = pd.DataFrame()
         self.X_test: pd.DataFrame
         self.X_test_full: pd.DataFrame
         self.y_test: pd.Series
@@ -36,6 +39,7 @@ class PrepData:
         self.test_pool: Pool
         self.model: CatBoostRegressor
         self.shap_values: np.ndarray = np.array([])
+        self.test_rmse: float
 
     # TODO: add some light dataframe that provides the missing link between df_excess_returns and df_preds
     # which should be used when joining prediction results to actual data.
@@ -92,13 +96,14 @@ class PrepData:
             test_size=test_size,
             random_state=self.seed
         )
+        drop_cols = ['ticker', 'date']
 
         # Store X_test with ticker for later use
         self.X_test_full = X_test_full
-        self.X_test = X_test_full.drop('ticker', axis=1)
+        self.X_test = X_test_full.drop(drop_cols, axis=1)
 
         # Create version without ticker for model training
-        X_temp = X_temp_full.drop('ticker', axis=1)
+        X_temp = X_temp_full.drop(drop_cols, axis=1)
 
         # Get categorical features indices after ticker is removed
         self.categorical_features_indices = np.where(self.X_test.dtypes != float)[0]
@@ -127,7 +132,7 @@ class PrepData:
             min_data_in_leaf=10
 
         depth=6
-        iterations = 200 # TODO: increase to 2000
+        iterations = 2000 # TODO: increase to 2000
         learning_rate = 0.15
         early_stopping_rounds = 25
 
@@ -157,12 +162,12 @@ class PrepData:
         # Get test set predictions
         test_preds = self.model.predict(self.test_pool)
         mean_preds = test_preds[:, 0]  # Get only mean predictions, not variance
-        test_rmse = np.sqrt(mean_squared_error(self.test_pool.get_label(), mean_preds))
+        self.test_rmse = np.sqrt(mean_squared_error(self.test_pool.get_label(), mean_preds))
 
         print("\nOutcome variable:", self.pred_col)
         print("Best iteration:", self.model.get_best_iteration())
         print("Validation RMSE:", self.model.get_best_score()['validation']['RMSEWithUncertainty'])
-        print(f"Holdout test set RMSE: {test_rmse:.6f}")
+        print(f"Holdout test set RMSE: {self.test_rmse:.6f}")
 
     def ticker_preds(self, ticker: str, since: str = "2019-01-01") -> pd.DataFrame:
         """Get predictions for a single ticker."""
@@ -250,20 +255,88 @@ class PrepData:
 
         shap.plots.beeswarm(explanation, max_display=40)
 
-    def ticker_shap(self, ticker: str) -> pd.DataFrame:
+    # def ticker_shap(self, ticker: str) -> pd.DataFrame:
+    #     ticker = ticker.upper()
+
+    #     # Create a Pool for just this ticker's data
+    #     ticker_data = self.df_preds[self.df_preds['ticker'] == ticker].copy()
+    #     if len(ticker_data) == 0:
+    #         raise ValueError(f"Ticker {ticker} not found in dataset")
+
+    #     X_ticker = ticker_data.drop(['ticker', 'date', self.pred_col], axis=1)
+    #     y_ticker = ticker_data[self.pred_col]
+
+    #     ticker_pool = Pool(X_ticker, y_ticker, cat_features=self.categorical_features_indices)
+
+    #     # Calculate SHAP values for this specific ticker
+    #     shap_values = self.model.get_feature_importance(
+    #         data=ticker_pool,
+    #         type='ShapValues',
+    #         shap_mode='UsePreCalc',
+    #         verbose=False
+    #     )
+
+    #     # Remove variance column if present
+    #     if len(shap_values.shape) == 3:
+    #         shap_values = shap_values[:, 0, :]
+
+    #     # Create DataFrame with results
+    #     row_data = pd.DataFrame({
+    #         'Feature': self.X_test.columns,
+    #         'SHAP Value': shap_values[0, :-1],  # Take first (and only) row
+    #         'Feature Value': X_ticker.iloc[0].values
+    #     })
+
+    #     # Sort by absolute SHAP values
+    #     row_data['Abs SHAP'] = row_data['SHAP Value'].abs()
+    #     row_data_sorted = row_data.sort_values('Abs SHAP', ascending=False)
+    #     row_data_sorted = row_data_sorted.drop('Abs SHAP', axis=1)
+
+    #     print(f"Bias (expected value): {shap_values[0, -1]:0.4f}")
+    #     print(f"Actual target value (log scale): {y_ticker.iloc[0]:0.4f}")
+    #     print(f"Actual target value (original scale): {np.exp(y_ticker.iloc[0]):0.4f}\n")
+
+    #     return row_data_sorted
+
+
+    def ticker_shap(self, ticker: str, since: str = None) -> pd.DataFrame:
         ticker = ticker.upper()
 
-        # Create a Pool for just this ticker's data
-        ticker_data = self.df_preds[self.df_preds['ticker'] == ticker].copy()
+        if len(self.df_excess_returns) == 0:
+            self.db_excess_returns()
+
+        # Use df_excess_returns instead of df_preds to get all dates
+        ticker_data = self.df_excess_returns[self.df_excess_returns['ticker'] == ticker].copy()
         if len(ticker_data) == 0:
             raise ValueError(f"Ticker {ticker} not found in dataset")
 
-        X_ticker = ticker_data.drop(['ticker', self.pred_col], axis=1)
+        # Filter by date if since is provided
+        if since is not None:
+            ticker_data = ticker_data[ticker_data['date'] >= since]
+            if len(ticker_data) == 0:
+                raise ValueError(f"No data found for {ticker} since {since}")
+        else:
+            # If no date provided, just get the latest record
+            ticker_data = ticker_data.sort_values('date', ascending=False).head(1)
+
+        # Store date and ticker before dropping them for the model
+        dates = ticker_data['date']
+        tickers = ticker_data['ticker']
+        actual_values = ticker_data[self.pred_col]
+
+        # Drop columns not used in model
+        X_ticker = ticker_data.drop(columns=list(self._model_exclude_cols | {self.pred_col}))
+        X_ticker = X_ticker.fillna(self._na_fill_value)
         y_ticker = ticker_data[self.pred_col]
 
         ticker_pool = Pool(X_ticker, y_ticker, cat_features=self.categorical_features_indices)
 
-        # Calculate SHAP values for this specific ticker
+        # Get predictions
+        predictions = self.model.predict(ticker_pool)
+        mean_preds = predictions[:, 0]  # Get mean predictions
+        var_preds = predictions[:, 1]   # Get variance predictions
+
+        # Calculate SHAP values
         shap_values = self.model.get_feature_importance(
             data=ticker_pool,
             type='ShapValues',
@@ -275,23 +348,51 @@ class PrepData:
         if len(shap_values.shape) == 3:
             shap_values = shap_values[:, 0, :]
 
-        # Create DataFrame with results
-        row_data = pd.DataFrame({
-            'Feature': self.X_test.columns,
-            'SHAP Value': shap_values[0, :-1],  # Take first (and only) row
-            'Feature Value': X_ticker.iloc[0].values
-        })
+        # Create list to store results for each date
+        results = []
 
-        # Sort by absolute SHAP values
-        row_data['Abs SHAP'] = row_data['SHAP Value'].abs()
-        row_data_sorted = row_data.sort_values('Abs SHAP', ascending=False)
-        row_data_sorted = row_data_sorted.drop('Abs SHAP', axis=1)
+        for i in range(len(dates)):
+            # Create DataFrame for this date
+            row_data = pd.DataFrame({
+                'Date': dates.iloc[i],
+                'Ticker': tickers.iloc[i],
+                'Feature': self.X_test.columns,
+                'SHAP Value': shap_values[i, :-1],
+                'Feature Value': X_ticker.iloc[i].values,
+                'Bias': shap_values[i, -1],
+                'Predicted Value (log)': mean_preds[i],
+                'Predicted Value': np.exp(mean_preds[i]),
+                'Predicted Std': np.sqrt(np.exp(2 * mean_preds[i]) * var_preds[i]),
+                'Actual Value (log)': actual_values.iloc[i],
+                'Actual Value': np.exp(actual_values.iloc[i]) if pd.notnull(actual_values.iloc[i]) else None
+            })
 
-        print(f"Bias (expected value): {shap_values[0, -1]:0.4f}")
-        print(f"Actual target value (log scale): {y_ticker.iloc[0]:0.4f}")
-        print(f"Actual target value (original scale): {np.exp(y_ticker.iloc[0]):0.4f}\n")
+            # Sort by absolute SHAP values
+            row_data['Abs SHAP'] = row_data['SHAP Value'].abs()
+            row_data = row_data.sort_values('Abs SHAP', ascending=False)
+            row_data = row_data.drop('Abs SHAP', axis=1)
 
-        return row_data_sorted
+            results.append(row_data)
+
+        # Combine all results
+        final_df = pd.concat(results, axis=0)
+
+        # Print summary for the most recent date
+        latest_date = dates.max()
+        latest_data = final_df[final_df['Date'] == latest_date].iloc[0]
+        print(f"\nMost recent prediction ({latest_date}):")
+        print(f"Bias (expected value): {latest_data['Bias']:0.4f}")
+        print(f"Predicted value (log scale): {latest_data['Predicted Value (log)']:0.4f}")
+        print(f"Predicted value (original scale): {latest_data['Predicted Value']:0.4f}")
+        print(f"Predicted std: {latest_data['Predicted Std']:0.4f}")
+        if pd.notnull(latest_data['Actual Value (log)']):
+            print(f"Actual target value (log scale): {latest_data['Actual Value (log)']:0.4f}")
+            print(f"Actual target value (original scale): {latest_data['Actual Value']:0.4f}")
+        else:
+            print("Actual target value: Not yet available")
+        print()
+
+        return final_df
 
 
 # TODO
