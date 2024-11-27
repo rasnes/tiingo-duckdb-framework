@@ -1,4 +1,7 @@
-create or replace view fundamentals.excess_returns as (
+-- TODO: this table should have primary key (ticker, date) for fast lookups
+-- consider making views with relevant columns for each of the prediction periods
+-- to provide to the model artifact in streamlit.
+create or replace table fundamentals.excess_returns as (
 with excess_returns as (
    select *,
       future_return(QQQ_adjClose, ticker, date, 2) as QQQ_return_6m,
@@ -77,5 +80,18 @@ with excess_returns as (
       overview_piotroskiFScore,
       cashFlow_ncf,
       cashFlow_ncff,
+      -- New, more speculative columns to omit:
+      cashFlow_capex,
+      cashFlow_issrepayDebt,
+      balanceSheet_liabilitiesNonCurrent,
+      incomeStatement_costRev,
+      incomeStatement_ebit,
+      incomeStatement_intexp,
+      cashFlow_ncfo,
+      cashFlow_ncfi,
+      trailingPEG1Y,
    )
-)
+);
+
+create index idx_excess_returns_ticker_date
+on fundamentals.excess_returns(ticker, date);
