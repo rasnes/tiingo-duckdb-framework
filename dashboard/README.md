@@ -2,6 +2,7 @@
 
 ## TODOs
 
+- Downgrade Python to 3.11, for maximum catboost compatibility
 - New tab: model overview
   - Metadata for model
   - Shapley value plot for features

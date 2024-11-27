@@ -57,3 +57,7 @@ openrouter/
 
 # Node
 node_modules/
+
+# Catboost
+*.cbm
+*.cbm.gz

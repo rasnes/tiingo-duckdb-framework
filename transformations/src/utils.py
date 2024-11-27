@@ -5,16 +5,20 @@ import numpy as np
 from typing import Set
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from catboost import CatBoostRegressor, Pool
+from catboost import CatBoostRegressor, Pool, EFstrType
 import matplotlib.pyplot as plt
 import shap
+from pathlib import Path
+from datetime import datetime
+import gzip
+import shutil
+
 
 # TODO: clean up methods and use easier to read pandas (even consier polars)
 # TODO: add unit tests.
 
 class PrepData:
     """Prepares data from DuckDB for training."""
-
     def __init__(self, conn: duckdb.DuckDBPyConnection, pred_col: str, seed: int) -> None:
         """Init with DuckDB connection."""
         self.conn: duckdb.DuckDBPyConnection = conn
@@ -31,7 +35,6 @@ class PrepData:
         self.df_preds: pd.DataFrame
         self.df_excess_returns: pd.DataFrame = pd.DataFrame()
         self.X_test: pd.DataFrame
-        self.X_test_full: pd.DataFrame
         self.y_test: pd.Series
         self.test_tickers: pd.Series
         self.train_pool: Pool
@@ -39,7 +42,7 @@ class PrepData:
         self.test_pool: Pool
         self.model: CatBoostRegressor
         self.shap_values: np.ndarray = np.array([])
-        self.test_rmse: float
+        self.test_rmse: np.ndarray
 
     # TODO: add some light dataframe that provides the missing link between df_excess_returns and df_preds
     # which should be used when joining prediction results to actual data.
@@ -99,7 +102,6 @@ class PrepData:
         drop_cols = ['ticker', 'date']
 
         # Store X_test with ticker for later use
-        self.X_test_full = X_test_full
         self.X_test = X_test_full.drop(drop_cols, axis=1)
 
         # Create version without ticker for model training
@@ -115,7 +117,6 @@ class PrepData:
         self.train_pool = Pool(X_train, y_train, cat_features=self.categorical_features_indices)
         self.eval_pool = Pool(X_val, y_val, cat_features=self.categorical_features_indices)
         self.test_pool = Pool(self.X_test, self.y_test, cat_features=self.categorical_features_indices)
-
 
     def model_init(self) -> None:
         # TODO maybe: include model for excess_return_ln_6m, even though it overfits
@@ -149,7 +150,6 @@ class PrepData:
             verbose=False,
             random_seed=self.seed,
         )
-
 
     def model_fit(self) -> None:
         self.model.fit(
@@ -220,7 +220,7 @@ class PrepData:
     def get_shap_values(self) -> None:
         shap_values = self.model.get_feature_importance(
             data=self.test_pool,
-            type='ShapValues',
+            type=EFstrType.ShapValues,
             shap_mode='UsePreCalc',
             verbose=False
         )
@@ -255,51 +255,8 @@ class PrepData:
 
         shap.plots.beeswarm(explanation, max_display=40)
 
-    # def ticker_shap(self, ticker: str) -> pd.DataFrame:
-    #     ticker = ticker.upper()
 
-    #     # Create a Pool for just this ticker's data
-    #     ticker_data = self.df_preds[self.df_preds['ticker'] == ticker].copy()
-    #     if len(ticker_data) == 0:
-    #         raise ValueError(f"Ticker {ticker} not found in dataset")
-
-    #     X_ticker = ticker_data.drop(['ticker', 'date', self.pred_col], axis=1)
-    #     y_ticker = ticker_data[self.pred_col]
-
-    #     ticker_pool = Pool(X_ticker, y_ticker, cat_features=self.categorical_features_indices)
-
-    #     # Calculate SHAP values for this specific ticker
-    #     shap_values = self.model.get_feature_importance(
-    #         data=ticker_pool,
-    #         type='ShapValues',
-    #         shap_mode='UsePreCalc',
-    #         verbose=False
-    #     )
-
-    #     # Remove variance column if present
-    #     if len(shap_values.shape) == 3:
-    #         shap_values = shap_values[:, 0, :]
-
-    #     # Create DataFrame with results
-    #     row_data = pd.DataFrame({
-    #         'Feature': self.X_test.columns,
-    #         'SHAP Value': shap_values[0, :-1],  # Take first (and only) row
-    #         'Feature Value': X_ticker.iloc[0].values
-    #     })
-
-    #     # Sort by absolute SHAP values
-    #     row_data['Abs SHAP'] = row_data['SHAP Value'].abs()
-    #     row_data_sorted = row_data.sort_values('Abs SHAP', ascending=False)
-    #     row_data_sorted = row_data_sorted.drop('Abs SHAP', axis=1)
-
-    #     print(f"Bias (expected value): {shap_values[0, -1]:0.4f}")
-    #     print(f"Actual target value (log scale): {y_ticker.iloc[0]:0.4f}")
-    #     print(f"Actual target value (original scale): {np.exp(y_ticker.iloc[0]):0.4f}\n")
-
-    #     return row_data_sorted
-
-
-    def ticker_shap(self, ticker: str, since: str = None) -> pd.DataFrame:
+    def ticker_shap(self, ticker: str, since: str | None = None) -> pd.DataFrame:
         ticker = ticker.upper()
 
         if len(self.df_excess_returns) == 0:
@@ -339,7 +296,7 @@ class PrepData:
         # Calculate SHAP values
         shap_values = self.model.get_feature_importance(
             data=ticker_pool,
-            type='ShapValues',
+            type=EFstrType.ShapValues,
             shap_mode='UsePreCalc',
             verbose=False
         )
@@ -393,6 +350,77 @@ class PrepData:
         print()
 
         return final_df
+
+
+    def save_model(self, directory: Path, compress: bool = False) -> None:
+        """Save the CatBoost model with automatic naming based on pred_col and timestamp."""
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        # Create filename with pred_col and ISO timestamp
+        timestamp = datetime.now().replace(microsecond=0).isoformat().replace(':', '-')
+        base_name = f"{self.pred_col}-{timestamp}"
+
+        # Temporary path for uncompressed model
+        temp_path = directory / f"{base_name}.cbm"
+
+        # Final path depends on compression
+        final_path = directory / f"{base_name}.{'cbm.gz' if compress else 'cbm'}"
+
+        # Save CatBoost model
+        self.model.save_model(temp_path)
+
+        if compress:
+            # Compress the file using gzip
+            with temp_path.open('rb') as f_in:
+                with gzip.open(final_path, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            # Remove the temporary uncompressed file
+            temp_path.unlink()
+        else:
+            # Just rename/move to final path if needed
+            if temp_path != final_path:
+                temp_path.rename(final_path)
+
+        size_mb = final_path.stat().st_size / (1024 * 1024)
+        print(f"Model saved to {final_path} (Size: {size_mb:.2f} MB)")
+
+    @classmethod
+    def load_model(cls, model_path: Path, conn: duckdb.DuckDBPyConnection, seed: int = 42) -> 'PrepData':
+        """Create a new instance and load a saved CatBoost model."""
+        import tempfile
+
+        if not model_path.exists():
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+
+        # Extract pred_col from filename
+        pred_col = model_path.stem.split('-')[0]
+
+        # Create new instance with extracted pred_col
+        instance = cls(conn=conn, pred_col=pred_col, seed=42)
+
+        # Handle compressed or uncompressed files
+        if model_path.suffix == '.gz':
+            # Create a temporary file for the uncompressed model
+            with tempfile.NamedTemporaryFile(suffix='.cbm', delete=False) as temp_file:
+                temp_path = Path(temp_file.name)
+                with gzip.open(model_path, 'rb') as f_in:
+                    temp_file.write(f_in.read())
+
+            try:
+                # Load the model from the temporary file
+                instance.model = CatBoostRegressor()
+                instance.model.load_model(temp_path)
+            finally:
+                # Clean up the temporary file
+                temp_path.unlink()
+        else:
+            # Load uncompressed model directly
+            instance.model = CatBoostRegressor()
+            instance.model.load_model(model_path)
+
+        return instance
+
 
 
 # TODO
