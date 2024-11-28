@@ -16,8 +16,6 @@ dependencies = [
     "ipywidgets>=8.1.5",
     "numpy>=1.26.4",
     "scikit-learn>=1.5.2",
-    "lightgbm>=4.5.0",
-    "xgboost>=2.1.2",
     "shap>=0.46.0",
 ]
 

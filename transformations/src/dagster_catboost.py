@@ -5,7 +5,6 @@ from dagster import (
     asset,
     resource,
     AssetExecutionContext,
-    MaterializeResult,
     Output,
     MetadataValue,
     TableColumn,
@@ -150,11 +149,12 @@ defs = Definitions(
         table_wide_statements,
         view_wide_with_daily_fundamentals,
         view_wide_with_combined_metrics,
-        view_excess_returns,
+        table_excess_returns,
         excess_returns,
     ],
     resources={
-        "duckdb_config": duckdb_resource.configured({"local": True})
+        # TODO: local flag should be an environment variable
+        "duckdb_config": duckdb_resource.configured({"local": False})
     },
     jobs=[catboost],
 )

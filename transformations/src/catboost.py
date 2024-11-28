@@ -358,7 +358,7 @@ class CatBoostTrainer:
 
         # Create filename with pred_col and ISO timestamp
         timestamp = datetime.now().replace(microsecond=0).isoformat().replace(':', '-')
-        base_name = f"{self.pred_col}-{timestamp}"
+        base_name = f"{self.pred_col}-s{self.seed}-{timestamp}"
 
         # Temporary path for uncompressed model
         temp_path = directory / f"{base_name}.cbm"
@@ -385,18 +385,21 @@ class CatBoostTrainer:
         print(f"Model saved to {final_path} (Size: {size_mb:.2f} MB)")
 
     @classmethod
-    def load_model(cls, model_path: Path, conn: duckdb.DuckDBPyConnection, seed: int = 42) -> 'PrepData':
+    def load_model(cls, model_path: Path, conn: duckdb.DuckDBPyConnection) -> 'CatBoostTrainer':
         """Create a new instance and load a saved CatBoost model."""
         import tempfile
 
         if not model_path.exists():
             raise FileNotFoundError(f"Model file not found: {model_path}")
 
-        # Extract pred_col from filename
-        pred_col = model_path.stem.split('-')[0]
+        # Extract pred_col and seed from filename
+        parts = model_path.stem.split('-')
+        print(parts)
+        pred_col = parts[0]
+        seed = int(parts[1][1:])
 
         # Create new instance with extracted pred_col
-        instance = cls(conn=conn, pred_col=pred_col, seed=42)
+        instance = cls(conn=conn, pred_col=pred_col, seed=seed)
 
         # Handle compressed or uncompressed files
         if model_path.suffix == '.gz':
@@ -419,7 +422,6 @@ class CatBoostTrainer:
             instance.model.load_model(model_path)
 
         return instance
-
 
 
 # TODO
