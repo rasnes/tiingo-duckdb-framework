@@ -65,3 +65,22 @@ case
             0)
     else null
 end;
+
+-- TODO: consider making values to float to save space
+-- TODO: double check primary key and or index
+create table if not exists main.predictions (
+    date VARCHAR,
+    ticker VARCHAR,
+    feature VARCHAR,
+    shap_value DOUBLE,
+    feature_value VARCHAR,
+    bias DOUBLE,
+    predicted_value_log DOUBLE,
+    actual_value_log DOUBLE,
+    predicted_value DOUBLE,
+    predicted_std DOUBLE,
+    actual_value DOUBLE,
+    pred_col VARCHAR,
+    predicted_at VARCHAR,
+    primary key (ticker, date, feature, pred_col, predicted_at)
+);

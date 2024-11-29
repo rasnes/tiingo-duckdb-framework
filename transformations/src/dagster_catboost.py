@@ -14,8 +14,7 @@ from dagster import (
 import polars as pl
 import duckdb
 from pathlib import Path
-import pyarrow as pa
-import pandas as pd
+from src.catboost_trainer import CatBoostTrainer
 
 LOCAL = True if environ["APP_ENV"] == "dev" else False
 
@@ -139,6 +138,101 @@ def excess_returns(context: AssetExecutionContext) -> Output:
     )
 
 
+# @asset(
+#     required_resource_keys={"duckdb_config"},
+#     deps=[excess_returns]
+# )
+# def train_12m(excess_returns: pl.DataFrame,context: AssetExecutionContext) -> pl.DataFrame:
+#     # TODO: change to make DuckDB conn optional?
+#     db_config = context.resources.duckdb_config
+#     conn = duckdb.connect(database=db_config["database"], read_only=True)
+#     boost = CatBoostTrainer(
+#         conn=conn,
+#         df_excess_returns=excess_returns,
+#         pred_col="excess_return_12m",
+#         seed=42,
+#     )
+#     boost.df_train_df()
+#     boost.split_train_test_pools()
+#     boost.model_init()
+#     boost.model_fit()
+#     return boost.all_ticker_shaps()
+
+def _train_model_base(context: AssetExecutionContext, excess_returns: pl.DataFrame, pred_col: str) -> Output:
+    """Base training function used by all prediction column variants."""
+    db_config = context.resources.duckdb_config
+    conn = duckdb.connect(database=db_config["database"], read_only=True)
+    boost = CatBoostTrainer(
+        conn=conn,
+        df_excess_returns=excess_returns,
+        pred_col=pred_col,
+        seed=42,
+    )
+    boost.df_train_df()
+    boost.split_train_test_pools()
+    boost.model_init()
+    boost.model_fit()
+    df = boost.all_ticker_shaps()
+
+    schema = [TableColumn(name=n, type=str(t)) for n, t in df.schema.items()]
+    size_mb = df.estimated_size() / (1024 * 1024)
+
+    # TODO: add training metadata to output, rmse, mae, etc. iterations
+
+    return Output(
+        value=df,
+        metadata={
+            "num_records": df.height,
+            "dagster/row_count": MetadataValue.int(df.height),
+            "dagster/column_schema": TableSchema(columns=schema),
+            "preview": MetadataValue.md(df.head().to_pandas().to_markdown()),
+            "size_mb": MetadataValue.float(round(size_mb, 2)),
+        }
+    )
+
+
+@asset(required_resource_keys={"duckdb_config"})
+def train_12m(context: AssetExecutionContext, excess_returns: pl.DataFrame) -> Output:
+    return _train_model_base(context, excess_returns, "excess_return_ln_12m")
+
+@asset(required_resource_keys={"duckdb_config"})
+def train_24m(context: AssetExecutionContext, excess_returns: pl.DataFrame) -> Output:
+    return _train_model_base(context, excess_returns, "excess_return_ln_24m")
+
+@asset(required_resource_keys={"duckdb_config"})
+def train_36m(context: AssetExecutionContext, excess_returns: pl.DataFrame) -> Output:
+    return _train_model_base(context, excess_returns, "excess_return_ln_36m")
+
+
+@asset
+def concat_results(train_12m: pl.DataFrame, train_24m: pl.DataFrame, train_36m: pl.DataFrame) -> Output:
+    df = pl.concat([train_12m, train_24m, train_36m])
+    schema = [TableColumn(name=n, type=str(t)) for n, t in df.schema.items()]
+    size_mb = df.estimated_size() / (1024 * 1024)
+
+    return Output(
+        value=df,
+        metadata={
+            "num_records": df.height,
+            "dagster/row_count": MetadataValue.int(df.height),
+            "dagster/column_schema": TableSchema(columns=schema),
+            "preview": MetadataValue.md(df.head().to_pandas().to_markdown()),
+            "size_mb": MetadataValue.float(round(size_mb, 2)),
+        }
+    )
+
+
+@asset(required_resource_keys={"duckdb_config"})
+def insert_into_duckdb(context: AssetExecutionContext, concat_results: pl.DataFrame) -> None:
+    db_config = context.resources.duckdb_config
+    conn = duckdb.connect(database=db_config["database"], read_only=False)
+
+    conn.query("""
+        insert or replace into main.predictions
+        select * from concat_results
+    """)
+
+
 
 ########## Dagster Job ##########
 
@@ -152,6 +246,11 @@ defs = Definitions(
         view_wide_with_combined_metrics,
         table_excess_returns,
         excess_returns,
+        train_12m,
+        train_24m,
+        train_36m,
+        concat_results,
+        insert_into_duckdb,
     ],
     resources={
         "duckdb_config": duckdb_resource.configured({"local": LOCAL})

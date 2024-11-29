@@ -16,7 +16,7 @@ import shutil
 
 # TODO: clean up methods and use easier to read pandas (even consider polars)
 # TODO: add unit tests.
-TRAINING_ITERATIONS = 100 if environ["APP_ENV"] == "dev" else 2000
+TRAINING_ITERATIONS = 200 if environ["APP_ENV"] == "dev" else 2000
 
 class CatBoostTrainer:
     """Prepares data from DuckDB for training."""
@@ -351,7 +351,9 @@ class CatBoostTrainer:
                     .then(pl.col('actual_value_log').exp())
                     .otherwise(None)
                     .alias('actual_value'),
-                pl.col('shap_value').abs().alias('abs_shap')
+                pl.col('shap_value').abs().alias('abs_shap'),
+                pl.lit(self.pred_col).alias('pred_col'),
+                pl.lit(datetime.now().isoformat()).alias('predicted_at'),
             ])
             .drop('var_preds')  # Remove temporary column
             .sort(['date', 'ticker', 'abs_shap'], descending=[False, False, True])
