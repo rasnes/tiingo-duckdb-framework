@@ -53,6 +53,11 @@ DATA.md
 .sesskey
 sonnet
 openrouter/
+.ruff_cache/
 
 # Node
 node_modules/
+
+# Catboost
+*.cbm
+*.cbm.gz

@@ -108,13 +108,15 @@ tasks:
 
   # Streamlit
   streamlit:run:
-    desc: Run Streamlit app
+    desc: Run Streamlit app from /dashboard folder
+    dir: ..
     cmds:
       - uv pip compile -q dashboard/pyproject.toml -o requirements.txt # To keep dependencies in sync with Streamlit Cloud
       - dashboard/.venv/bin/python -m streamlit run dashboard/src/_router.py --logger.level debug
 
   streamlit:upload:
-    desc: Upload files to Google Drive, for streamlit to fetch
+    desc: Upload files to Google Drive, for streamlit to fetch, from /dashboard folder
+    dir: ..
     cmds:
       - rclone copy dashboard/src/notebooks/ private_google_drive:pitchit/notebooks/ --include "*.ipynb"
 
