@@ -1,7 +1,8 @@
-
+from os import environ
 import duckdb
 import pandas as pd
 import numpy as np
+import polars as pl
 from typing import Set
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -15,10 +16,11 @@ import shutil
 
 # TODO: clean up methods and use easier to read pandas (even consider polars)
 # TODO: add unit tests.
+TRAINING_ITERATIONS = 100 if environ["APP_ENV"] == "dev" else 2000
 
 class CatBoostTrainer:
     """Prepares data from DuckDB for training."""
-    def __init__(self, conn: duckdb.DuckDBPyConnection, pred_col: str, seed: int) -> None:
+    def __init__(self, conn: duckdb.DuckDBPyConnection, df_excess_returns: pl.DataFrame, pred_col: str, seed: int) -> None:
         """Init with DuckDB connection."""
         self.conn: duckdb.DuckDBPyConnection = conn
         self.pred_col: str = pred_col
@@ -30,9 +32,8 @@ class CatBoostTrainer:
         }
         self._model_exclude_cols: Set[str] = self._all_exclude_cols | {'ticker', 'date'}
         self._na_fill_value: int = -999999999
-        self.categorical_feature_indices: np.ndarray
+        self.categorical_features_indices: np.ndarray
         self.df_preds: pd.DataFrame
-        self.df_excess_returns: pd.DataFrame = pd.DataFrame()
         self.X_test: pd.DataFrame
         self.y_test: pd.Series
         self.test_tickers: pd.Series
@@ -43,15 +44,17 @@ class CatBoostTrainer:
         self.shap_values: np.ndarray = np.array([])
         self.test_rmse: np.ndarray
 
+        # Convert all Decimal types to Float64, to aid Pandas conversion
+        self.df_excess_returns: pl.DataFrame = df_excess_returns.with_columns([
+            pl.col(col).cast(pl.Float64)
+            for col in df_excess_returns.columns
+            if df_excess_returns.schema[col] == pl.Decimal
+        ])
+
+
+
     # TODO: add some light dataframe that provides the missing link between df_excess_returns and df_preds
     # which should be used when joining prediction results to actual data.
-
-    def db_excess_returns(self) -> None:
-        # TODO recreate to polars dataframe
-        """Get full DataFrame from DuckDB."""
-        self.df_excess_returns = self.conn.query("""
-            select * from fundamentals.excess_returns
-        """).df()
 
     def db_train_df(self) -> None:
         """Get training DataFrame excluding specified cols except prediction col.
@@ -82,8 +85,7 @@ class CatBoostTrainer:
             raise ValueError("No data loaded. Run db_excess_returns() first.")
 
         exclude_cols = self._all_exclude_cols.difference({self.pred_col})
-        print(exclude_cols)
-        self.df_preds = self.df_excess_returns.drop(columns=list(exclude_cols))
+        self.df_preds = self.df_excess_returns.to_pandas().drop(columns=list(exclude_cols))
         self.df_preds = self.df_preds.dropna(subset=[self.pred_col])
         self.df_preds = self.df_preds.fillna(self._na_fill_value)
 
@@ -133,7 +135,7 @@ class CatBoostTrainer:
             min_data_in_leaf=10
 
         depth=6
-        iterations = 2000 # TODO: make dependen on APP_ENV
+        iterations = TRAINING_ITERATIONS
         learning_rate = 0.15
         early_stopping_rounds = 25
 
@@ -255,15 +257,117 @@ class CatBoostTrainer:
 
         shap.plots.beeswarm(explanation, max_display=40)
 
+    def all_ticker_shaps(self, since: str | None = None) -> pl.DataFrame:
+        """Generate shap values and predictions FOR all tickers.
+        Results to be exported to DuckDB in a subsequent step in pipeline."""
+
+        # Load data using Polars
+        df_excess = self.df_excess_returns
+
+        # Filter by date if provided
+        if since is not None:
+            df_excess = df_excess.filter(pl.col('date') >= since)
+            if df_excess.height == 0:
+                raise ValueError(f"No data found since {since}")
+        else:
+            # If no date, get latest record for each ticker
+            df_excess = (df_excess
+                .sort('date', descending=True)
+                .group_by('ticker')
+                .head(1))
+
+
+        # Convert to pandas for compatibility with existing code
+        ticker_data = df_excess.to_pandas()
+
+        # Store metadata
+        dates = ticker_data['date']
+        tickers = ticker_data['ticker']
+        actual_values = ticker_data[self.pred_col]
+
+        # Prepare features
+        X_ticker = ticker_data.drop(columns=list(self._model_exclude_cols | {self.pred_col}))
+        X_ticker = X_ticker.fillna(self._na_fill_value)
+        y_ticker = ticker_data[self.pred_col]
+
+        # Create pool and get predictions
+        ticker_pool = Pool(X_ticker, y_ticker, cat_features=self.categorical_features_indices)
+        predictions = self.model.predict(ticker_pool)
+        mean_preds = predictions[:, 0]
+        var_preds = predictions[:, 1]
+
+        # Calculate SHAP values
+        shap_values = self.model.get_feature_importance(
+            data=ticker_pool,
+            type=EFstrType.ShapValues,
+            shap_mode='UsePreCalc',
+            verbose=False
+        )
+
+        if len(shap_values.shape) == 3:
+            shap_values = shap_values[:, 0, :]
+
+        print(shap_values.shape)
+
+        ## Create results for export
+
+        # Calculate repeated indices for features
+        n_samples = len(dates)
+        n_features = len(X_ticker.columns)
+        sample_idx = np.repeat(np.arange(n_samples), n_features)
+
+        # Convert Pandas Series to arrays before creating DataFrame
+        dates_array = dates.to_numpy()
+        tickers_array = tickers.to_numpy()
+        actual_values_array = actual_values.to_numpy()
+
+        # Simply convert all feature values to strings
+        feature_values = X_ticker.values.flatten().astype(str)
+
+        print("creating results df")
+
+        # Create base DataFrame
+        results = pl.DataFrame({
+            'date': pl.Series(dates_array[sample_idx], dtype=pl.Utf8),
+            'ticker': pl.Series(tickers_array[sample_idx], dtype=pl.Utf8),
+            'feature': pl.Series(np.tile(X_ticker.columns, n_samples), dtype=pl.Utf8),
+            'shap_value': pl.Series(shap_values[:, :-1].flatten(), dtype=pl.Float64),
+            'feature_value': pl.Series(feature_values, dtype=pl.Utf8),  # All as strings
+            'bias': pl.Series(np.repeat(shap_values[:, -1], n_features), dtype=pl.Float64),
+            'predicted_value_log': pl.Series(np.repeat(mean_preds, n_features), dtype=pl.Float64),
+            'actual_value_log': pl.Series(np.repeat(actual_values_array, n_features), dtype=pl.Float64)
+        })
+
+        # Rest of transformations
+        results = (results
+            # First add var_preds as a column
+            .with_columns(pl.Series('var_preds', np.repeat(var_preds, n_features)))
+            # Then do all transformations using pure Polars
+            .with_columns([
+                pl.col('predicted_value_log').exp().alias('predicted_value'),
+                (pl.col('predicted_value_log').exp() * 2 * pl.col('var_preds')).sqrt()
+                    .alias('predicted_std'),
+                pl.when(pl.col('actual_value_log').is_not_null())
+                    .then(pl.col('actual_value_log').exp())
+                    .otherwise(None)
+                    .alias('actual_value'),
+                pl.col('shap_value').abs().alias('abs_shap')
+            ])
+            .drop('var_preds')  # Remove temporary column
+            .sort(['date', 'ticker', 'abs_shap'], descending=[False, False, True])
+            .drop('abs_shap'))
+
+        return results
+
+
 
     def ticker_shap(self, ticker: str, since: str | None = None) -> pd.DataFrame:
         ticker = ticker.upper()
 
-        if len(self.df_excess_returns) == 0:
-            self.db_excess_returns()
-
         # Use df_excess_returns instead of df_preds to get all dates
-        ticker_data = self.df_excess_returns[self.df_excess_returns['ticker'] == ticker].copy()
+        # TODO: optimize the below.
+        df_excess = self.df_excess_returns.to_pandas()
+        ticker_data = df_excess[df_excess['ticker'] == ticker].copy()
         if len(ticker_data) == 0:
             raise ValueError(f"Ticker {ticker} not found in dataset")
 
@@ -306,6 +410,8 @@ class CatBoostTrainer:
         if len(shap_values.shape) == 3:
             shap_values = shap_values[:, 0, :]
 
+        print(shap_values.shape)
+
         # Create list to store results for each date
         results = []
 
@@ -314,7 +420,7 @@ class CatBoostTrainer:
             row_data = pd.DataFrame({
                 'Date': dates.iloc[i],
                 'Ticker': tickers.iloc[i],
-                'Feature': self.X_test.columns,
+                'Feature': X_ticker.columns,
                 'SHAP Value': shap_values[i, :-1],
                 'Feature Value': X_ticker.iloc[i].values,
                 'Bias': shap_values[i, -1],

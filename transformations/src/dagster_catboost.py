@@ -17,6 +17,7 @@ from pathlib import Path
 import pyarrow as pa
 import pandas as pd
 
+LOCAL = True if environ["APP_ENV"] == "dev" else False
 
 @resource(config_schema={"local": bool})
 def duckdb_resource(init_context):
@@ -153,8 +154,7 @@ defs = Definitions(
         excess_returns,
     ],
     resources={
-        # TODO: local flag should be an environment variable, dependent on APP_ENV
-        "duckdb_config": duckdb_resource.configured({"local": False})
+        "duckdb_config": duckdb_resource.configured({"local": LOCAL})
     },
     jobs=[catboost],
 )
