@@ -153,7 +153,7 @@ defs = Definitions(
         excess_returns,
     ],
     resources={
-        # TODO: local flag should be an environment variable
+        # TODO: local flag should be an environment variable, dependent on APP_ENV
         "duckdb_config": duckdb_resource.configured({"local": False})
     },
     jobs=[catboost],

@@ -47,6 +47,7 @@ class CatBoostTrainer:
     # which should be used when joining prediction results to actual data.
 
     def db_excess_returns(self) -> None:
+        # TODO recreate to polars dataframe
         """Get full DataFrame from DuckDB."""
         self.df_excess_returns = self.conn.query("""
             select * from fundamentals.excess_returns
@@ -132,7 +133,7 @@ class CatBoostTrainer:
             min_data_in_leaf=10
 
         depth=6
-        iterations = 2000 # TODO: increase to 2000
+        iterations = 2000 # TODO: make dependen on APP_ENV
         learning_rate = 0.15
         early_stopping_rounds = 25
 
@@ -281,6 +282,7 @@ class CatBoostTrainer:
         actual_values = ticker_data[self.pred_col]
 
         # Drop columns not used in model
+        # TODO: convert to pandas when making X_ticker.
         X_ticker = ticker_data.drop(columns=list(self._model_exclude_cols | {self.pred_col}))
         X_ticker = X_ticker.fillna(self._na_fill_value)
         y_ticker = ticker_data[self.pred_col]
@@ -422,13 +424,5 @@ class CatBoostTrainer:
             instance.model.load_model(model_path)
 
         return instance
-
-
-# TODO
-# - Final artifact should all 4 models and the df_excess_returns (but it can get that one from motherduck)
-# - Add method that deletes all dataframes from the class, prior to saving the model
-# - Use joblib to save the model artifact
-# - Consider pre-computing shap values etc. in the artifact, instead of doing this compute in streamlit
-#   - yes, makes sense, then I don't need the dataframe in the artifact at all, if all model assessment metrics are already computed
 
 

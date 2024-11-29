@@ -2,9 +2,6 @@
 
 ## TODOs
 
-- Upgrade Python to 3.12, ditch catboost in dashboard
-  - Rather, get all model results from duckdb directly.
-  - Because: memory would be very hard to keep below 1GB and dealing with model versions via files would be messy.
 - New tab: model overview
   - Metadata for model
   - Shapley value plot for features
