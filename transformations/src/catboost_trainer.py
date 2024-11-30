@@ -31,7 +31,6 @@ class CatBoostTrainer:
             'excess_return_ln_24m', 'excess_return_ln_36m',
         }
         self._model_exclude_cols: Set[str] = self._all_exclude_cols | {'ticker', 'date'}
-        self._na_fill_value: int = -999999999
         self.categorical_features_indices: np.ndarray
         self.df_preds: pd.DataFrame
         self.X_test: pd.DataFrame
@@ -44,11 +43,17 @@ class CatBoostTrainer:
         self.shap_values: np.ndarray = np.array([])
         self.test_rmse: np.ndarray
 
-        # Convert all Decimal types to Float64, to aid Pandas conversion
+
+        # Convert all Decimal types to Float64 and replace missing values in string columns
         self.df_excess_returns: pl.DataFrame = df_excess_returns.with_columns([
-            pl.col(col).cast(pl.Float64)
-            for col in df_excess_returns.columns
-            if df_excess_returns.schema[col] == pl.Decimal
+            # Handle Decimal to Float64 conversion
+            *[pl.col(col).cast(pl.Float64)
+                for col in df_excess_returns.columns
+                if df_excess_returns.schema[col] == pl.Decimal],
+            # Replace null values with "None" string in string columns
+            *[pl.col(col).fill_null("None")
+                for col in df_excess_returns.columns
+                if df_excess_returns.schema[col] == pl.String]
         ])
 
 
@@ -70,7 +75,7 @@ class CatBoostTrainer:
             from fundamentals.excess_returns
             where {self.pred_col} is not null
         """).df()
-        self.df_preds = self.df_preds.fillna(self._na_fill_value)
+        self.df_preds = self.df_preds
 
         size_bytes = self.df_preds.memory_usage(deep=True).sum()
         size_mb = size_bytes / (1024 * 1024)
@@ -87,7 +92,7 @@ class CatBoostTrainer:
         exclude_cols = self._all_exclude_cols.difference({self.pred_col})
         self.df_preds = self.df_excess_returns.to_pandas().drop(columns=list(exclude_cols))
         self.df_preds = self.df_preds.dropna(subset=[self.pred_col])
-        self.df_preds = self.df_preds.fillna(self._na_fill_value)
+        self.df_preds = self.df_preds
 
         size_bytes = self.df_preds.memory_usage(deep=True).sum()
         size_mb = size_bytes / (1024 * 1024)
@@ -180,7 +185,7 @@ class CatBoostTrainer:
             select * exclude({exclude_cols})
             from fundamentals.excess_returns
             where ticker = '{ticker}' and date > '{since}'
-        """).df().fillna(self._na_fill_value)
+        """).df()
 
         df_actual = self.conn.query(f"""
             select date, {self.pred_col}
@@ -287,7 +292,7 @@ class CatBoostTrainer:
 
         # Prepare features
         X_ticker = ticker_data.drop(columns=list(self._model_exclude_cols | {self.pred_col}))
-        X_ticker = X_ticker.fillna(self._na_fill_value)
+        X_ticker = X_ticker
         y_ticker = ticker_data[self.pred_col]
 
         # Create pool and get predictions
@@ -328,7 +333,7 @@ class CatBoostTrainer:
 
         # Create base DataFrame
         results = pl.DataFrame({
-            'date': pl.Series(dates_array[sample_idx], dtype=pl.Utf8),
+            'date': pl.Series(dates_array[sample_idx], dtype=pl.Date), # TODO: make date type; just switch to pl.Date?
             'ticker': pl.Series(tickers_array[sample_idx], dtype=pl.Utf8),
             'feature': pl.Series(np.tile(X_ticker.columns, n_samples), dtype=pl.Utf8),
             'shap_value': pl.Series(shap_values[:, :-1].flatten(), dtype=pl.Float64),
@@ -390,7 +395,7 @@ class CatBoostTrainer:
         # Drop columns not used in model
         # TODO: convert to pandas when making X_ticker.
         X_ticker = ticker_data.drop(columns=list(self._model_exclude_cols | {self.pred_col}))
-        X_ticker = X_ticker.fillna(self._na_fill_value)
+        X_ticker = X_ticker
         y_ticker = ticker_data[self.pred_col]
 
         ticker_pool = Pool(X_ticker, y_ticker, cat_features=self.categorical_features_indices)
