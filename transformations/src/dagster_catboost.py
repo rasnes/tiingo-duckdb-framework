@@ -1,5 +1,4 @@
 from os import environ
-import datetime
 from dagster import (
     Definitions,
     asset,
@@ -137,26 +136,6 @@ def excess_returns(context: AssetExecutionContext) -> Output:
         }
     )
 
-
-# @asset(
-#     required_resource_keys={"duckdb_config"},
-#     deps=[excess_returns]
-# )
-# def train_12m(excess_returns: pl.DataFrame,context: AssetExecutionContext) -> pl.DataFrame:
-#     # TODO: change to make DuckDB conn optional?
-#     db_config = context.resources.duckdb_config
-#     conn = duckdb.connect(database=db_config["database"], read_only=True)
-#     boost = CatBoostTrainer(
-#         conn=conn,
-#         df_excess_returns=excess_returns,
-#         pred_col="excess_return_12m",
-#         seed=42,
-#     )
-#     boost.df_train_df()
-#     boost.split_train_test_pools()
-#     boost.model_init()
-#     boost.model_fit()
-#     return boost.all_ticker_shaps()
 
 def _train_model_base(context: AssetExecutionContext, excess_returns: pl.DataFrame, pred_col: str) -> Output:
     """Base training function used by all prediction column variants."""

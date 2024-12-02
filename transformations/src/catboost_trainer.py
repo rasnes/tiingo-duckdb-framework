@@ -42,6 +42,7 @@ class CatBoostTrainer:
         self.model: CatBoostRegressor
         self.shap_values: np.ndarray = np.array([])
         self.test_rmse: np.ndarray
+        self.train_timestamp: datetime
 
 
         # Convert all Decimal types to Float64 and replace missing values in string columns
@@ -170,6 +171,7 @@ class CatBoostTrainer:
         test_preds = self.model.predict(self.test_pool)
         mean_preds = test_preds[:, 0]  # Get only mean predictions, not variance
         self.test_rmse = np.sqrt(mean_squared_error(self.test_pool.get_label(), mean_preds))
+        self.train_timestamp = datetime.now()
 
         print("\nOutcome variable:", self.pred_col)
         print("Best iteration:", self.model.get_best_iteration())
@@ -333,7 +335,7 @@ class CatBoostTrainer:
 
         # Create base DataFrame
         results = pl.DataFrame({
-            'date': pl.Series(dates_array[sample_idx], dtype=pl.Date), # TODO: make date type; just switch to pl.Date?
+            'date': pl.Series(dates_array[sample_idx], dtype=pl.Date),
             'ticker': pl.Series(tickers_array[sample_idx], dtype=pl.Utf8),
             'feature': pl.Series(np.tile(X_ticker.columns, n_samples), dtype=pl.Utf8),
             'shap_value': pl.Series(shap_values[:, :-1].flatten(), dtype=pl.Float64),
@@ -358,7 +360,8 @@ class CatBoostTrainer:
                     .alias('actual_value'),
                 pl.col('shap_value').abs().alias('abs_shap'),
                 pl.lit(self.pred_col).alias('pred_col'),
-                pl.lit(datetime.now().isoformat()).alias('predicted_at'),
+                pl.lit(self.train_timestamp.isoformat()).cast(pl.Datetime).alias('trained_at'),
+                pl.lit(self.train_timestamp.date().isoformat()).cast(pl.Date).alias('trained_date'),
             ])
             .drop('var_preds')  # Remove temporary column
             .sort(['date', 'ticker', 'abs_shap'], descending=[False, False, True])
