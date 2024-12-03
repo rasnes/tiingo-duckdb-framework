@@ -7,6 +7,7 @@ create or replace table fundamentals.wide_statements as (
       sma(adjClose, ticker, date, 250) as SMA_12m,
       -- sma(adjClose, ticker, date, 500) as SMA_24m,
       sma(adjClose, ticker, date, 750) as SMA_36m,
+    -- where date <= '2021-12-31' -- Use this to create unbiased historic predictions
   ), indices as (
     from daily_adjusted_sma
     select
