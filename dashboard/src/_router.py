@@ -1,5 +1,9 @@
 import hmac
 import streamlit as st
+from os import environ
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def check_password() -> bool:
     """Returns `True` if the user had the correct password."""
@@ -24,10 +28,13 @@ def check_password() -> bool:
         st.error("😕 Password incorrect")
     return False
 
+# Check if authentication is required based on environment
+REQUIRE_AUTH = st.secrets.get("REQUIRE_AUTH", False)
+if environ["DEVELOPMENT"] == "local":
+    REQUIRE_AUTH = False
 
-if not check_password():
+if REQUIRE_AUTH and not check_password():
     st.stop()
-
 
 st.logo("dashboard/artifacts/pitchit_hq.png", size="large")
 
@@ -37,6 +44,11 @@ dashboards = dict(
         title="Dashboard",
         icon=":material/dashboard:",
         default=True,
+    ),
+    predictions=st.Page(
+        "dashboards/predictions.py",
+        title="Predictions",
+        icon=":material/insert_drive_file:",
     ),
 )
 
