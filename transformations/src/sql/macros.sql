@@ -69,18 +69,19 @@ end;
 -- TODO: consider making values to float to save space
 -- TODO: double check primary key and or index
 create table if not exists main.predictions (
-    date VARCHAR,
+    date DATE,
     ticker VARCHAR,
     feature VARCHAR,
-    shap_value DOUBLE,
+    shap_value FLOAT,
     feature_value VARCHAR,
-    bias DOUBLE,
-    predicted_value_log DOUBLE,
-    actual_value_log DOUBLE,
-    predicted_value DOUBLE,
-    predicted_std DOUBLE,
-    actual_value DOUBLE,
+    bias FLOAT,
+    predicted_value_log FLOAT,
+    actual_value_log FLOAT,
+    predicted_value FLOAT,
+    predicted_std FLOAT,
+    actual_value FLOAT,
     pred_col VARCHAR,
-    predicted_at VARCHAR,
-    primary key (ticker, date, feature, pred_col, predicted_at)
+    trained_at TIMESTAMP,
+    trained_date DATE,
+    primary key (date, ticker, feature, pred_col, trained_date)
 );

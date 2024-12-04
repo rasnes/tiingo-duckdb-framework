@@ -49,6 +49,41 @@ selected_tickers = st.multiselect(
 # Display the chart using the selected tickers
 duck.relative_chart(daily, selected_tickers, date_from, date_to)
 
+
+
+
+
+# Display predictions and uncertainty
+# TODO: make this a central, reusable component
+preds_rel = """
+with latest_train as (
+    select max(trained_date) as trained_date
+    from main.predictions
+), preds as (
+    from main.predictions
+    semi join latest_train using (trained_date)
+    select *
+), with_meta as (
+    from preds
+    left join fundamentals.meta
+        on preds.ticker = upper(meta.ticker)
+    select
+        preds.*, meta.name, meta.sector, meta.industry, meta.sicSector, meta.location, meta.statementLastUpdated
+    where meta.isActive = true
+)
+select * from with_meta
+"""
+
+preds = duck.Preds(duck.md_con, duck.md_con.sql(preds_rel))
+preds_tickers = list(set(selected_tickers).intersection(set(preds.get_all_tickers())))
+# Get data for selected tickers
+preds.get_df(preds_tickers)
+preds.get_forecasts()
+
+preds.plot_preds()
+
+
+# Create summary table
 t: ibis.Table = daily.date_selection(selected_tickers, date_from, date_to)
 
 df_summary = (

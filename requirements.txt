@@ -163,6 +163,8 @@ python-dateutil==2.9.0.post0
     #   ibis-framework
     #   jupyter-client
     #   pandas
+python-dotenv==1.0.1
+    # via dashboard (dashboard/pyproject.toml)
 pytz==2024.2
     # via
     #   ibis-framework
