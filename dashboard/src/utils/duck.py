@@ -68,6 +68,27 @@ def relative_chart(daily: Daily, selected_tickers, date_from, date_to) -> None:
     st.altair_chart(c, use_container_width=True)
 
 
+relations = {
+    "preds_rel": """
+with latest_train as (
+    select max(trained_date) as trained_date
+    from main.predictions
+), preds as (
+    from main.predictions
+    semi join latest_train using (trained_date)
+    select *
+), with_meta as (
+    from preds
+    left join fundamentals.meta
+        on preds.ticker = upper(meta.ticker)
+    select
+        preds.*, meta.name, meta.sector, meta.industry, meta.sicSector, meta.location, meta.statementLastUpdated
+    where meta.isActive = true
+)
+select * from with_meta
+""",
+}
+
 class Preds:
     def __init__(self, conn: duckdb.DuckDBPyConnection, rel: duckdb.DuckDBPyRelation) -> None:
         self.conn = conn
