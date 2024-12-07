@@ -18,7 +18,7 @@ create or replace table fundamentals.wide_statements as (
       SMA_12m,
       -- SMA_24m,
       SMA_36m,
-    where ticker in ('SPY', 'QQQ')
+    where ticker = 'SPY'
   ), pivoted_price as (
     pivot indices on ticker
     using first(adjClose) as adjClose,
@@ -52,9 +52,9 @@ create or replace table fundamentals.wide_statements as (
   ), joined_with_volatility as (
     select *,
       -- index_volatility(adjClose, QQQ_adjClose, SPY_adjClose, exchange, ticker, date, 125) as volatility_6m,
-      index_volatility(adjClose, QQQ_adjClose, SPY_adjClose, exchange, ticker, date, 250) as volatility_12m,
+      index_volatility(adjClose, SPY_adjClose, ticker, date, 250) as volatility_12m,
       -- index_volatility(adjClose, QQQ_adjClose, SPY_adjClose, exchange, ticker, date, 500) as volatility_24m,
-      index_volatility(adjClose, QQQ_adjClose, SPY_adjClose, exchange, ticker, date, 750) as volatility_36m,
+      index_volatility(adjClose, SPY_adjClose, ticker, date, 750) as volatility_36m,
       sma(adjVolume, ticker, date, 250) as SMA_volume_12m,
       stddev(adjVolume) over (
         partition by ticker

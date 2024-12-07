@@ -10,12 +10,14 @@ from dagster import (
     TableSchema,
     define_asset_job,
 )
+import numpy as np
 import polars as pl
 import duckdb
 from pathlib import Path
 from src.catboost_trainer import CatBoostTrainer
 
 LOCAL = True if environ["APP_ENV"] == "dev" else False
+print(f"Running in {'local' if LOCAL else 'production'} mode")
 
 @resource(config_schema={"local": bool})
 def duckdb_resource(init_context):
@@ -145,7 +147,7 @@ def _train_model_base(context: AssetExecutionContext, excess_returns: pl.DataFra
         conn=conn,
         df_excess_returns=excess_returns,
         pred_col=pred_col,
-        seed=42,
+        seed=np.random.randint(0, 10),
     )
     boost.df_train_df()
     boost.split_train_test_pools()
