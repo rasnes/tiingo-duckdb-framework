@@ -69,25 +69,49 @@ def relative_chart(daily: Daily, selected_tickers, date_from, date_to) -> None:
 
 
 relations = {
-    "preds_rel": """
-with latest_train as (
-    select max(trained_date) as trained_date
-    from main.predictions
-), preds as (
-    from main.predictions
-    semi join latest_train using (trained_date)
-    select *
-), with_meta as (
-    from preds
-    left join fundamentals.meta
-        on preds.ticker = upper(meta.ticker)
-    select
-        preds.*, meta.name, meta.sector, meta.industry, meta.sicSector, meta.location, meta.statementLastUpdated
-    where meta.isActive = true
-)
-select * from with_meta
-""",
+    "preds_rel": """select * from main.relevant_preds""",
 }
+
+class Picker:
+    def __init__(self, conn: duckdb.DuckDBPyConnection, rel: duckdb.DuckDBPyRelation) -> None:
+        self.conn = conn
+        self.rel = rel
+
+    def get_preds_per_horizon(self) -> pl.DataFrame:
+        rel = self.rel
+        query = """
+        select distinct
+            ticker,
+            right(pred_col, 3) as pred_horizon,
+            predicted_value,
+            predicted_std,
+            name,
+            sector,
+            industry,
+            sicSector,
+            location,
+            statementLastUpdated,
+            date as pred_date,
+            trained_date,
+            pred_col,
+        from rel 
+        order by ticker, pred_horizon
+        """
+        return self.conn.sql(query).pl()
+
+    def get_shaps(self, ticker: str, pred_col: str) -> pl.DataFrame:
+        rel = self.rel
+        query = f"""
+        select
+            feature,
+            shap_value,
+            feature_value,    
+        from rel
+        where ticker = '{ticker}' and pred_col = '{pred_col}'
+        order by abs(shap_value) desc
+        """
+        return self.conn.sql(query).pl()
+
 
 class Preds:
     def __init__(self, conn: duckdb.DuckDBPyConnection, rel: duckdb.DuckDBPyRelation) -> None:

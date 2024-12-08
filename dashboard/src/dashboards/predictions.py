@@ -6,7 +6,7 @@ import pandas as pd
 
 from utils import duck
 
-# TODO: add shap values somehow. As a pivot table? Or multiple tables next to eadch other?
+st.set_page_config(layout="wide")
 
 md_preds = duck.md_con.sql(duck.relations["preds_rel"])
 preds = duck.Preds(duck.md_con, md_preds)
