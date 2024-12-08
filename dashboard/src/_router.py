@@ -48,7 +48,12 @@ dashboards = dict(
     predictions=st.Page(
         "dashboards/predictions.py",
         title="Predictions",
-        icon=":material/insert_drive_file:",
+        icon=":material/dashboard:",
+    ),
+    stock_picker=st.Page(
+        "dashboards/stock_picker.py",
+        title="Stock Picker",
+        icon=":material/dashboard:",
     ),
 )
 

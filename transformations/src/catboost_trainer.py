@@ -99,7 +99,7 @@ class CatBoostTrainer:
         size_mb = size_bytes / (1024 * 1024)
         print(f"DataFrame size: {size_mb:.2f} MB")
 
-    def split_train_test_pools(self, test_size = 0.05, val_size = 0.1) -> None:
+    def split_train_test_pools(self, test_size = 0.03, val_size = 0.05) -> None:
         # First split the full dataset including ticker
         X_temp_full, X_test_full, y_temp, self.y_test = train_test_split(
             self.df_preds.drop(self.pred_col, axis=1),  # Keep ticker here

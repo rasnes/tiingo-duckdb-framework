@@ -6,31 +6,9 @@ import pandas as pd
 
 from utils import duck
 
+st.set_page_config(layout="wide")
 
-# TODO: wrap plots ++ in functions, and add the plot to main.py as well.
-# TODO: add shap values somehow. As a pivot table? Or multiple tables next to eadch other?
-
-
-preds_rel = """
-with latest_train as (
-    select max(trained_date) as trained_date
-    from main.predictions
-), preds as (
-    from main.predictions
-    semi join latest_train using (trained_date)
-    select *
-), with_meta as (
-    from preds
-    left join fundamentals.meta
-        on preds.ticker = upper(meta.ticker)
-    select
-        preds.*, meta.name, meta.sector, meta.industry, meta.sicSector, meta.location, meta.statementLastUpdated
-    where meta.isActive = true
-)
-select * from with_meta
-"""
-
-md_preds = duck.md_con.sql(preds_rel)
+md_preds = duck.md_con.sql(duck.relations["preds_rel"])
 preds = duck.Preds(duck.md_con, md_preds)
 
 # Cache all_tickers

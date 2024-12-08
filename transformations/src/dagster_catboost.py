@@ -143,11 +143,12 @@ def _train_model_base(context: AssetExecutionContext, excess_returns: pl.DataFra
     """Base training function used by all prediction column variants."""
     db_config = context.resources.duckdb_config
     conn = duckdb.connect(database=db_config["database"], read_only=True)
+    seed = np.random.randint(0, 10)
     boost = CatBoostTrainer(
         conn=conn,
         df_excess_returns=excess_returns,
         pred_col=pred_col,
-        seed=np.random.randint(0, 10),
+        seed=seed,
     )
     boost.df_train_df()
     boost.split_train_test_pools()
@@ -158,14 +159,16 @@ def _train_model_base(context: AssetExecutionContext, excess_returns: pl.DataFra
     schema = [TableColumn(name=n, type=str(t)) for n, t in df.schema.items()]
     size_mb = df.estimated_size() / (1024 * 1024)
 
-    # TODO: add training metadata to output, rmse, mae, etc. iterations
-
     return Output(
         value=df,
         metadata={
+            "model_test_rmse": MetadataValue.float(float(round(boost.test_rmse, 4))),
+            "model_seed": MetadataValue.int(seed),
+            "model_timestamp": MetadataValue.text(boost.train_timestamp.isoformat()),
+            "model_best_iteration": MetadataValue.int(int(boost.model.best_iteration_)),
             "num_records": df.height,
-            "dagster/row_count": MetadataValue.int(df.height),
-            "dagster/column_schema": TableSchema(columns=schema),
+            "row_count": MetadataValue.int(df.height),
+            "column_schema": TableSchema(columns=schema),
             "preview": MetadataValue.md(df.head().to_pandas().to_markdown()),
             "size_mb": MetadataValue.float(round(size_mb, 2)),
         }
@@ -214,6 +217,14 @@ def insert_into_duckdb(context: AssetExecutionContext, concat_results: pl.DataFr
     """)
 
 
+@asset(
+    required_resource_keys={"duckdb_config"},
+    deps=[insert_into_duckdb]
+)
+def relevant_preds(context: AssetExecutionContext) -> None:
+    db_config = context.resources.duckdb_config
+    query_duckdb_file(Path("src/sql/relevant_preds.sql"), db_config)
+
 
 ########## Dagster Job ##########
 
@@ -232,6 +243,7 @@ defs = Definitions(
         train_36m,
         concat_results,
         insert_into_duckdb,
+        relevant_preds,
     ],
     resources={
         "duckdb_config": duckdb_resource.configured({"local": LOCAL})

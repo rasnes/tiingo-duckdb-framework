@@ -61,3 +61,4 @@ node_modules/
 # Catboost
 *.cbm
 *.cbm.gz
+catboost_info/
