@@ -29,9 +29,9 @@ def check_password() -> bool:
     return False
 
 # Check if authentication is required based on environment
-REQUIRE_AUTH = st.secrets.get("REQUIRE_AUTH", False)
-# if environ.get("DEVELOPMENT") == "local":
-#     REQUIRE_AUTH = False
+REQUIRE_AUTH = st.secrets.get("REQUIRE_AUTH", True)
+if environ.get("DEVELOPMENT") == "local":
+    REQUIRE_AUTH = False
 
 if REQUIRE_AUTH and not check_password():
     st.stop()
