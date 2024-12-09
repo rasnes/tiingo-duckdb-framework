@@ -3,3 +3,6 @@ level = "debug"
 
 [client]
 showSidebarNavigation = true
+
+[theme]
+base="dark"
