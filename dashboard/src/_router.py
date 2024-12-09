@@ -58,12 +58,16 @@ dashboards = dict(
 )
 
 notebooks = dict(
-    eda=st.Page(
-        "notebooks/eda.py",
+    catboost_model_12m=st.Page(
+        "notebooks/catboost_model_12m.py",
         icon=":material/insert_drive_file:",
     ),
-    init=st.Page(
-        "notebooks/init.py",
+    catboost_model_24m=st.Page(
+        "notebooks/catboost_model_24m.py",
+        icon=":material/insert_drive_file:",
+    ),
+    catboost_model_36m=st.Page(
+        "notebooks/catboost_model_36m.py",
         icon=":material/insert_drive_file:",
     ),
 )
