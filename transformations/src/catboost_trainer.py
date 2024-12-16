@@ -14,8 +14,7 @@ from datetime import datetime
 import gzip
 import shutil
 
-# TODO: clean up methods and use easier to read pandas (even consider polars)
-# TODO: add unit tests.
+
 TRAINING_ITERATIONS = 200 if environ["APP_ENV"] == "dev" else 2000
 
 class CatBoostTrainer:
@@ -57,10 +56,6 @@ class CatBoostTrainer:
                 if df_excess_returns.schema[col] == pl.String]
         ])
 
-
-
-    # TODO: add some light dataframe that provides the missing link between df_excess_returns and df_preds
-    # which should be used when joining prediction results to actual data.
 
     def db_train_df(self) -> None:
         """Get training DataFrame excluding specified cols except prediction col.
@@ -468,77 +463,5 @@ class CatBoostTrainer:
 
         return final_df
 
-
-    def save_model(self, directory: Path, compress: bool = False) -> None:
-        """Save the CatBoost model with automatic naming based on pred_col and timestamp."""
-        directory = Path(directory)
-        directory.mkdir(parents=True, exist_ok=True)
-
-        # Create filename with pred_col and ISO timestamp
-        timestamp = datetime.now().replace(microsecond=0).isoformat().replace(':', '-')
-        base_name = f"{self.pred_col}-s{self.seed}-{timestamp}"
-
-        # Temporary path for uncompressed model
-        temp_path = directory / f"{base_name}.cbm"
-
-        # Final path depends on compression
-        final_path = directory / f"{base_name}.{'cbm.gz' if compress else 'cbm'}"
-
-        # Save CatBoost model
-        self.model.save_model(temp_path)
-
-        if compress:
-            # Compress the file using gzip
-            with temp_path.open('rb') as f_in:
-                with gzip.open(final_path, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-            # Remove the temporary uncompressed file
-            temp_path.unlink()
-        else:
-            # Just rename/move to final path if needed
-            if temp_path != final_path:
-                temp_path.rename(final_path)
-
-        size_mb = final_path.stat().st_size / (1024 * 1024)
-        print(f"Model saved to {final_path} (Size: {size_mb:.2f} MB)")
-
-    @classmethod
-    def load_model(cls, model_path: Path, conn: duckdb.DuckDBPyConnection) -> 'CatBoostTrainer':
-        """Create a new instance and load a saved CatBoost model."""
-        import tempfile
-
-        if not model_path.exists():
-            raise FileNotFoundError(f"Model file not found: {model_path}")
-
-        # Extract pred_col and seed from filename
-        parts = model_path.stem.split('-')
-        print(parts)
-        pred_col = parts[0]
-        seed = int(parts[1][1:])
-
-        # Create new instance with extracted pred_col
-        instance = cls(conn=conn, pred_col=pred_col, seed=seed)
-
-        # Handle compressed or uncompressed files
-        if model_path.suffix == '.gz':
-            # Create a temporary file for the uncompressed model
-            with tempfile.NamedTemporaryFile(suffix='.cbm', delete=False) as temp_file:
-                temp_path = Path(temp_file.name)
-                with gzip.open(model_path, 'rb') as f_in:
-                    temp_file.write(f_in.read())
-
-            try:
-                # Load the model from the temporary file
-                instance.model = CatBoostRegressor()
-                instance.model.load_model(temp_path)
-            finally:
-                # Clean up the temporary file
-                temp_path.unlink()
-        else:
-            # Load uncompressed model directly
-            instance.model = CatBoostRegressor()
-            instance.model.load_model(model_path)
-
-        return instance
 
 
