@@ -8,7 +8,7 @@ st.set_page_config(layout="wide")
 md_preds = duck.md_con.sql(duck.relations["preds_rel"])
 picker = duck.Picker(duck.md_con, md_preds)
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_preds_for_horizon():
     return picker.get_preds_per_horizon()
 
@@ -68,11 +68,11 @@ df_filtered = df_preds_per_horizon.filter(
     (pl.col("predicted_value").is_between(pred_value_range[0], pred_value_range[1])) &
     (pl.col("predicted_std").is_between(std_range[0], std_range[1])) &
     (
-        (pl.col("sector").is_in(selected_sectors)) if len(selected_sectors) > 0 
+        (pl.col("sector").is_in(selected_sectors)) if len(selected_sectors) > 0
         else pl.lit(True)
     ) &
     (
-        (pl.col("industry").is_in(selected_industries)) if len(selected_industries) > 0 
+        (pl.col("industry").is_in(selected_industries)) if len(selected_industries) > 0
         else pl.lit(True)
     )
 )
