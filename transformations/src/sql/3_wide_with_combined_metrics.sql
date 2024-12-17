@@ -30,9 +30,9 @@ select *,
     NULLIF(incomeStatement_revenue, 0) * 365 as working_capital_days,
 
     -- 9. Enterprise value ratios
-    incomeStatement_ebitda / NULLIF(enterpriseVal, 0) as ev_to_ebitda,
-    cashFlow_freeCashFlow / NULLIF(enterpriseVal, 0) as ev_to_fcf,
-    incomeStatement_revenue / NULLIF(enterpriseVal, 0) as ev_to_sales,
+    NULLIF(enterpriseVal, 0) / incomeStatement_ebitda  as ev_to_ebitda,
+    NULLIF(enterpriseVal, 0) /  cashFlow_freeCashFlow  as ev_to_fcf,
+     NULLIF(enterpriseVal, 0) / incomeStatement_revenue as ev_to_sales,
 
     -- 11. Financial Health Score
     overview_currentRatio / nullif(overview_debtEquity, 0) as financial_health_score,
