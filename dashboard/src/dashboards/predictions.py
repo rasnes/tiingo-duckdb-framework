@@ -12,7 +12,7 @@ md_preds = duck.md_con.sql(duck.relations["preds_rel"])
 preds = duck.Preds(duck.md_con, md_preds)
 
 # Cache all_tickers
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_all_tickers():
     return preds.get_all_tickers()
 

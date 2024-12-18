@@ -13,7 +13,7 @@ daily = duck.Daily(md_daily_adjusted)
 
 
 # Cache all_tickers
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_all_tickers():
     return daily.get_all_tickers().execute()
 

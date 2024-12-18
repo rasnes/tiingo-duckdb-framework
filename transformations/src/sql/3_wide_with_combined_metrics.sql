@@ -32,7 +32,7 @@ select *,
     -- 9. Enterprise value ratios
     NULLIF(enterpriseVal, 0) / incomeStatement_ebitda  as ev_to_ebitda,
     NULLIF(enterpriseVal, 0) /  cashFlow_freeCashFlow  as ev_to_fcf,
-     NULLIF(enterpriseVal, 0) / incomeStatement_revenue as ev_to_sales,
+    NULLIF(enterpriseVal, 0) / incomeStatement_revenue as ev_to_sales,
 
     -- 11. Financial Health Score
     overview_currentRatio / nullif(overview_debtEquity, 0) as financial_health_score,
