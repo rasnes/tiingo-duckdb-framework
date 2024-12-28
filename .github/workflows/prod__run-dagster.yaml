@@ -1,4 +1,4 @@
-name: dev__run-dagster
+name: prod__run-dagster
 
 on:
   schedule:
@@ -16,7 +16,7 @@ env:
 jobs:
   run-dagster:
     runs-on: ubuntu-latest
-    environment: dev
+    environment: prod
 
     defaults:
       run:
@@ -30,6 +30,7 @@ jobs:
         id: setup-uv
         uses: astral-sh/setup-uv@v3
         with:
+          version: "0.5.x"
           enable-cache: true
           cache-dependency-glob: ${{ env.UV_LOCK_FILE }}
 
@@ -46,7 +47,7 @@ jobs:
         if: steps.uv-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p $UV_CACHE_DIR
-          uv python install 3.12
+          uv python install 3.11
           uv sync
           echo "Cache directory after uv sync:"
           ls -R $UV_CACHE_DIR
@@ -61,21 +62,21 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
       - name: Download Dagster artifact from previous run
-        run: gh run download --name dagster-play-state --dir dagster
+        run: gh run download --name dagster-prod-state --dir dagster
 
       - name: Run Dagster pipeline
         run: task dagster:run
         env:
-          CLI_ARGS: "-f dagster_play.py"
+          CLI_ARGS: "-f dagster_catboost.py"
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
           APP_ENV: ${{ vars.APP_ENV }}
 
       - name: Upload updated Dagster artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dagster-play-state
+          name: dagster-prod-state
           path: |
             transformations/dagster/**
             !transformations/dagster/dagster.yaml
-          retention-days: 8
+          retention-days: 90
           overwrite: true
