@@ -4,11 +4,6 @@ on:
   schedule:
     - cron: '0 5 * * 0'
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'transformations/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -63,11 +58,11 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Authenticate gh CLI
-      #   run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+      - name: Authenticate gh CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
-      # - name: Download Dagster artifact from previous run
-      #   run: gh run download --name dagster-play-state --dir dagster
+      - name: Download Dagster artifact from previous run
+        run: gh run download --name dagster-prod-state --dir dagster
 
       - name: Run Dagster pipeline
         run: task dagster:run
