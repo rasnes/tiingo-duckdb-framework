@@ -69,6 +69,7 @@ jobs:
         env:
           CLI_ARGS: "-f dagster_catboost.py"
           MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
           APP_ENV: ${{ vars.APP_ENV }}
 
       - name: Upload updated Dagster artifact
