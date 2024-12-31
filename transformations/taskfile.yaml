@@ -12,6 +12,8 @@ vars:
     sh: pwd
   DAGSTER_HOME: "{{.PWD}}/dagster"
   DAGSTER_DEFAULT_FILE: src/dagster_catboost.py
+  GITHUB_TOKEN:
+    sh: gh auth token
 
 dotenv: ['.env']
 
@@ -35,3 +37,24 @@ tasks:
         else
           DAGSTER_HOME="{{.DAGSTER_HOME}}" uv run dagster dev -f {{.DAGSTER_DEFAULT_FILE}}
         fi
+
+  dagster:get-prod-state:
+    desc: Downloads latest dagster-prod-state from github artifacts to directory dagster
+    cmds:
+      - rm -rf dagster/artifacts/*
+      - rm -rf dagster/compute_logs/*
+      - rm -rf dagster/logs/*
+      - rm -rf dagster/sqlite/*
+      - gh run download --name dagster-prod-state --dir dagster
+
+  dagster:run-prod-workflow:
+    desc: runs the prod github actions workflow locally, to be able to use and update the prod artifact
+    dir: ..
+    cmds:
+      - |
+        act workflow_dispatch -W .github/workflows/prod__run-dagster.yaml \
+          --container-architecture linux/amd64 \
+          --secret GITHUB_TOKEN={{.GITHUB_TOKEN}} \
+          --secret MOTHERDUCK_TOKEN={{.MOTHERDUCK_TOKEN}} \
+          --var APP_ENV={{.APP_ENV}} \
+          -P ubuntu-latest=catthehacker/ubuntu:full-latest

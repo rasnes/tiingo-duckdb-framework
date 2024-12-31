@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install the latest version of uv (pin it when going to prod!)
+      - name: Install uv
         id: setup-uv
         uses: astral-sh/setup-uv@v3
         with:
@@ -34,14 +34,14 @@ jobs:
           enable-cache: true
           cache-dependency-glob: ${{ env.UV_LOCK_FILE }}
 
-      - name: Cache uv installs
-        uses: actions/cache@v4
-        id: uv-cache
-        with:
-          path: ${{ env.UV_CACHE_DIR }}
-          key: ${{ runner.os }}-uv-${{ hashFiles(env.UV_LOCK_FILE) }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+      # - name: Cache uv installs
+      #   uses: actions/cache@v4
+      #   id: uv-cache
+      #   with:
+      #     path: ${{ env.UV_CACHE_DIR }}
+      #     key: ${{ runner.os }}-uv-${{ hashFiles(env.UV_LOCK_FILE) }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-uv-
 
       - name: Install python and dependencies via uv
         if: steps.uv-cache.outputs.cache-hit != 'true'
