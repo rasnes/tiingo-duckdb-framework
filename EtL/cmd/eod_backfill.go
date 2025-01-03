@@ -25,7 +25,7 @@ func newBackfillCmd() *cobra.Command {
 			}
 			defer pipeline.Close()
 
-			tickers := strings.Split(args[0], ",") // Assuming comma-separated tickers
+			tickers := strings.Split(strings.ToUpper(args[0]), ",") // Convert tickers to uppercase
 			nSuccess, err := pipeline.BackfillEndOfDay(tickers)
 			if err != nil {
 				return fmt.Errorf("error backfilling tickers: %w", err)

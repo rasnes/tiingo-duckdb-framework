@@ -48,7 +48,7 @@ func newFundamentalsDailyCmd() *cobra.Command {
 
 			var tickerSlice []string
 			if tickers != "" {
-				tickerSlice = strings.Split(tickers, ",")
+				tickerSlice = strings.Split(strings.ToUpper(tickers), ",")
 			}
 
 			var skipTickerSlice []string
@@ -138,7 +138,7 @@ func newStatementsCmd() *cobra.Command {
 
 			var tickerSlice []string
 			if tickers != "" {
-				tickerSlice = strings.Split(tickers, ",")
+				tickerSlice = strings.Split(strings.ToUpper(tickers), ",")
 			}
 
 			var skipTickerSlice []string
